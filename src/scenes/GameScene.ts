@@ -9,6 +9,7 @@ import { Character } from "../entities/Character";
 import { Grenade, MAX_GRENADE_SPEED } from "../entities/Grenade";
 import { Projectile } from "../entities/Projectile";
 import { AimingSystem } from "../systems/AimingSystem";
+import { AudioManager } from "../systems/AudioManager";
 import { CameraController } from "../systems/CameraController";
 import { applyRadialGravity } from "../systems/GravitySystem";
 import { TerrainManager } from "../systems/TerrainManager";
@@ -35,6 +36,7 @@ export class GameScene extends Phaser.Scene {
   #terrain!: TerrainManager;
   #turnManager!: TurnManager;
   #aimingSystem!: AimingSystem;
+  #audioManager!: AudioManager;
   #allCharacters: Character[] = [];
   #teams: Array<{ name: string; worms: Character[] }> = [];
   #projectiles: Projectile[] = [];
@@ -69,6 +71,10 @@ export class GameScene extends Phaser.Scene {
     return this.#activeWeapon;
   }
 
+  get audioManager(): AudioManager {
+    return this.#audioManager;
+  }
+
   // ──────────────────────────────── lifecycle ───────────────────────────────────
 
   // Called by Phaser when the scene starts (not declared in the base class type)
@@ -85,6 +91,10 @@ export class GameScene extends Phaser.Scene {
 
     // Planet terrain
     this.#terrain = new TerrainManager(this);
+
+    // Audio
+    this.#audioManager = new AudioManager(this);
+    this.#audioManager.startMusic();
 
     // Two teams, each with one worm, on opposite poles
     const teamA = [
@@ -125,6 +135,7 @@ export class GameScene extends Phaser.Scene {
       console.log(
         `[TurnManager] Turn started — active worm: ${worm.name} (team ${this.#turnManager.getActiveTeamIndex()})`,
       );
+      this.#audioManager.playTeleport();
       this.#cameraController.follow(worm);
       this.#aimingSystem.activate(worm);
       this.#turnManager.startTimer(this);
@@ -145,6 +156,7 @@ export class GameScene extends Phaser.Scene {
         power: number;
         worm: Character;
       }) => {
+        this.#audioManager.playFire();
         if (this.#activeWeapon === "grenade") {
           this.#fireGrenade(angle, power, worm);
           // Grenade: turn advances on explosion (see 'grenade-exploded')
@@ -159,6 +171,7 @@ export class GameScene extends Phaser.Scene {
     this.events.on(
       "projectile-exploded",
       ({ x, y }: { x: number; y: number }) => {
+        this.#audioManager.playExplosion();
         this.#terrain.explode(x, y, EXPLOSION_RADIUS);
 
         for (const worm of this.#allCharacters) {
@@ -179,6 +192,7 @@ export class GameScene extends Phaser.Scene {
 
     // When the grenade detonates: destroy terrain, apply damage, advance turn
     this.events.on("grenade-exploded", ({ x, y }: { x: number; y: number }) => {
+      this.#audioManager.playExplosion();
       this.#terrain.explode(x, y, GRENADE_EXPLOSION_RADIUS);
 
       for (const worm of this.#allCharacters) {
@@ -231,6 +245,7 @@ export class GameScene extends Phaser.Scene {
 
     // Worm death events
     this.events.on("worm-died", (_worm: Character) => {
+      this.#audioManager.playDeath();
       for (const team of this.#teams) {
         if (team.worms.every((c) => !c.isAlive())) {
           const winner = this.#teams.find(
@@ -273,7 +288,10 @@ export class GameScene extends Phaser.Scene {
     // Character movement — only the active worm responds (← → now rotate aim, ↑ still jumps)
     const active = this.#turnManager.getCurrentWorm();
     if (active?.isAlive() && this.#cursors) {
-      if (Phaser.Input.Keyboard.JustDown(this.#cursors.up)) active.jump();
+      if (Phaser.Input.Keyboard.JustDown(this.#cursors.up)) {
+        active.jump();
+        this.#audioManager.playJump();
+      }
     }
 
     // Aiming system handles ← → for rotation and Space for charge/fire

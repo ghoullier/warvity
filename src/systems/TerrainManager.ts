@@ -1,5 +1,6 @@
 import type Phaser from "phaser";
 import { CANVAS_SIZE, PLANET_CENTER, PLANET_RADIUS } from "../config";
+import { DEFAULT_PLANET_STYLE, type PlanetStyle } from "../config/PlanetStyles";
 
 interface Hole {
   x: number;
@@ -30,9 +31,11 @@ export class TerrainManager {
   readonly #outlineGraphics: Phaser.GameObjects.Graphics;
   readonly #holes: Hole[] = [];
   readonly #scene: Phaser.Scene;
+  readonly #style: PlanetStyle;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, style: PlanetStyle = DEFAULT_PLANET_STYLE) {
     this.#scene = scene;
+    this.#style = style;
 
     // Bitmap covers the planet bounding square with 1-cell padding
     this.#bitmapSize = PLANET_RADIUS * 2 + 2;
@@ -61,7 +64,7 @@ export class TerrainManager {
     // Static outline overlay drawn above the RenderTexture; stays visible
     // even after explosions punch holes in the terrain below.
     this.#outlineGraphics = scene.add.graphics();
-    this.#outlineGraphics.lineStyle(3, 0x5a3e1b, 1);
+    this.#outlineGraphics.lineStyle(3, this.#style.terrainOutline, 1);
     this.#outlineGraphics.strokeCircle(
       PLANET_CENTER.x,
       PLANET_CENTER.y,
@@ -89,15 +92,16 @@ export class TerrainManager {
     const gfx = this.#scene.add.graphics();
 
     // Outer rock layer
-    gfx.fillStyle(0x5a4a3a);
+    gfx.fillStyle(this.#style.terrainFill);
     gfx.fillCircle(PLANET_CENTER.x, PLANET_CENTER.y, PLANET_RADIUS);
 
-    // Inner soil layer
-    gfx.fillStyle(0x4a7c59);
+    // Inner layer with accent colour
+    gfx.fillStyle(this.#style.surfaceAccent);
     gfx.fillCircle(PLANET_CENTER.x, PLANET_CENTER.y, PLANET_RADIUS - 8);
 
-    // Core highlight
-    gfx.fillStyle(0x3d6e4e);
+    // Core highlight (slightly darker blend)
+    const coreFill = Math.round(this.#style.surfaceAccent * 0.85) & 0xffffff;
+    gfx.fillStyle(coreFill);
     gfx.fillCircle(PLANET_CENTER.x, PLANET_CENTER.y, PLANET_RADIUS * 0.6);
 
     this.#renderTexture.draw(gfx);

@@ -1,5 +1,10 @@
 import Phaser from "phaser";
 import { CANVAS_SIZE } from "../config";
+import {
+  DEFAULT_PLANET_STYLE,
+  PLANET_STYLES,
+  type PlanetStyle,
+} from "../config/PlanetStyles";
 
 const PLANET_CX = CANVAS_SIZE / 2;
 const PLANET_CY = 740;
@@ -14,11 +19,13 @@ const PLANET_R = 220;
 export class MenuScene extends Phaser.Scene {
   #teams = 2;
   #wormsPerTeam = 1;
+  #planetStyle: PlanetStyle = PLANET_STYLES[0] ?? DEFAULT_PLANET_STYLE;
   #teamsText!: Phaser.GameObjects.Text;
   #wormsText!: Phaser.GameObjects.Text;
   #planetGfx!: Phaser.GameObjects.Graphics;
   #planetAngle = 0;
   #overlayActive = false;
+  #styleSwatches: Phaser.GameObjects.Rectangle[] = [];
 
   constructor() {
     super({ key: "MenuScene" });
@@ -114,9 +121,20 @@ export class MenuScene extends Phaser.Scene {
       this.#changeWorms(1),
     );
 
+    // Planet style selector
+    this.add
+      .text(CANVAS_SIZE / 2, 472, "PLANET", {
+        fontSize: "20px",
+        color: "#aaaacc",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
+    this.#buildStyleSwatches(514);
+
     // PLAY button
     const playBtn = this.add
-      .text(CANVAS_SIZE / 2, 510, "▶  PLAY", {
+      .text(CANVAS_SIZE / 2, 590, "▶  PLAY", {
         fontSize: "38px",
         color: "#ffff00",
         fontStyle: "bold",
@@ -136,12 +154,13 @@ export class MenuScene extends Phaser.Scene {
       this.scene.start("GameScene", {
         teams: this.#teams,
         wormsPerTeam: this.#wormsPerTeam,
+        planetStyle: this.#planetStyle,
       });
     });
 
     // HOW TO PLAY button
     const howBtn = this.add
-      .text(CANVAS_SIZE / 2, 590, "HOW TO PLAY", {
+      .text(CANVAS_SIZE / 2, 670, "HOW TO PLAY", {
         fontSize: "20px",
         color: "#8888bb",
         backgroundColor: "#1a1a33",
@@ -166,12 +185,16 @@ export class MenuScene extends Phaser.Scene {
     const gfx = this.#planetGfx;
     gfx.clear();
 
+    const fill = this.#planetStyle.terrainFill;
+    const accent = this.#planetStyle.surfaceAccent;
+    const outline = this.#planetStyle.terrainOutline;
+
     // Outer atmosphere glow
     gfx.lineStyle(10, 0x4499ff, 0.15);
     gfx.strokeCircle(PLANET_CX, PLANET_CY, PLANET_R + 12);
 
     // Planet base
-    gfx.fillStyle(0x3d6b4a, 1);
+    gfx.fillStyle(fill, 1);
     gfx.fillCircle(PLANET_CX, PLANET_CY, PLANET_R);
 
     // Terrain patches that rotate slowly
@@ -183,7 +206,7 @@ export class MenuScene extends Phaser.Scene {
       { a: 4.3, d: 50, s: 26 },
       { a: 5.4, d: 75, s: 20 },
     ];
-    gfx.fillStyle(0x2a4d35, 1);
+    gfx.fillStyle(accent, 1);
     for (const p of patches) {
       const px = PLANET_CX + Math.cos(p.a + this.#planetAngle) * p.d;
       const py = PLANET_CY + Math.sin(p.a + this.#planetAngle) * p.d;
@@ -191,7 +214,7 @@ export class MenuScene extends Phaser.Scene {
     }
 
     // Atmosphere ring
-    gfx.lineStyle(3, 0x88ccff, 0.25);
+    gfx.lineStyle(3, outline, 0.5);
     gfx.strokeCircle(PLANET_CX, PLANET_CY, PLANET_R + 5);
   }
 
@@ -303,6 +326,61 @@ export class MenuScene extends Phaser.Scene {
       this.#overlayActive = false;
     });
     overlay.add(closeBtn);
+  }
+
+  #buildStyleSwatches(y: number): void {
+    const swatchSize = 44;
+    const gap = 14;
+    const total = PLANET_STYLES.length;
+    const totalWidth = total * swatchSize + (total - 1) * gap;
+    const startX = CANVAS_SIZE / 2 - totalWidth / 2 + swatchSize / 2;
+
+    this.#styleSwatches = [];
+
+    for (let i = 0; i < PLANET_STYLES.length; i++) {
+      const style = PLANET_STYLES[i];
+      if (!style) continue;
+      const sx = startX + i * (swatchSize + gap);
+
+      const swatch = this.add
+        .rectangle(sx, y, swatchSize, swatchSize, style.terrainFill)
+        .setStrokeStyle(
+          this.#planetStyle.id === style.id ? 3 : 1,
+          this.#planetStyle.id === style.id ? 0xffffff : style.terrainOutline,
+        )
+        .setInteractive({ useHandCursor: true });
+
+      this.#styleSwatches.push(swatch);
+
+      // Emoji label
+      this.add.text(sx, y, style.emoji, { fontSize: "20px" }).setOrigin(0.5);
+
+      swatch.on("pointerdown", () => {
+        this.#planetStyle = style;
+        this.#refreshSwatchBorders();
+      });
+
+      swatch.on("pointerover", () => {
+        swatch.setStrokeStyle(3, 0xffff00);
+      });
+
+      swatch.on("pointerout", () => {
+        this.#refreshSwatchBorders();
+      });
+    }
+  }
+
+  #refreshSwatchBorders(): void {
+    for (let i = 0; i < PLANET_STYLES.length; i++) {
+      const style = PLANET_STYLES[i];
+      const swatch = this.#styleSwatches[i];
+      if (!style || !swatch) continue;
+      const selected = this.#planetStyle.id === style.id;
+      swatch.setStrokeStyle(
+        selected ? 3 : 1,
+        selected ? 0xffffff : style.terrainOutline,
+      );
+    }
   }
 
   #addStars(): void {

@@ -124,7 +124,7 @@ export class UIScene extends Phaser.Scene {
     ge.on("worm-died", (worm: Character) => this.#refreshHpFill(worm), this);
     ge.on(
       "weapon-changed",
-      (weapon: "bazooka" | "grenade" | "teleporter") =>
+      (weapon: "bazooka" | "grenade" | "teleporter" | "singularity") =>
         this.#applyWeaponChange(weapon),
       this,
     );
@@ -248,11 +248,14 @@ export class UIScene extends Phaser.Scene {
   }
 
   /** Update the active weapon display. */
-  #applyWeaponChange(weapon: "bazooka" | "grenade" | "teleporter"): void {
+  #applyWeaponChange(
+    weapon: "bazooka" | "grenade" | "teleporter" | "singularity",
+  ): void {
     const labels: Record<typeof weapon, string> = {
       bazooka: "🚀  Bazooka",
       grenade: "💣  Grenade",
       teleporter: "🌀  Teleporter",
+      singularity: "🕳️  Singularity",
     };
     this.#weaponText.setText(labels[weapon]);
   }

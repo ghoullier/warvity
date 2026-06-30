@@ -11,6 +11,7 @@ import { Projectile } from "../entities/Projectile";
 import { AimingSystem } from "../systems/AimingSystem";
 import { CameraController } from "../systems/CameraController";
 import { applyRadialGravity } from "../systems/GravitySystem";
+import * as ParticleSystem from "../systems/ParticleSystem";
 import { TerrainManager } from "../systems/TerrainManager";
 import { TurnManager } from "../systems/TurnManager";
 
@@ -160,6 +161,8 @@ export class GameScene extends Phaser.Scene {
       "projectile-exploded",
       ({ x, y }: { x: number; y: number }) => {
         this.#terrain.explode(x, y, EXPLOSION_RADIUS);
+        ParticleSystem.explode(this, x, y, PLANET_CENTER);
+        ParticleSystem.debris(this, x, y, PLANET_CENTER);
 
         for (const worm of this.#allCharacters) {
           if (!worm.isAlive()) continue;
@@ -180,6 +183,8 @@ export class GameScene extends Phaser.Scene {
     // When the grenade detonates: destroy terrain, apply damage, advance turn
     this.events.on("grenade-exploded", ({ x, y }: { x: number; y: number }) => {
       this.#terrain.explode(x, y, GRENADE_EXPLOSION_RADIUS);
+      ParticleSystem.explode(this, x, y, PLANET_CENTER);
+      ParticleSystem.debris(this, x, y, PLANET_CENTER);
 
       for (const worm of this.#allCharacters) {
         if (!worm.isAlive()) continue;

@@ -12,6 +12,9 @@ const FLASH_DURATION = 220;
 const WORM_SURFACE_OFFSET = 20;
 // Check terrain validity just inside the surface ring
 const TERRAIN_CHECK_INSET = 10;
+// Scale factor to map from the surface-offset ring to PLANET_RADIUS - TERRAIN_CHECK_INSET
+const TERRAIN_CHECK_SCALE =
+  (PLANET_RADIUS - TERRAIN_CHECK_INSET) / (PLANET_RADIUS + WORM_SURFACE_OFFSET);
 
 /**
  * Two-step teleporter weapon.
@@ -70,12 +73,8 @@ export class Teleporter {
     const dest = this.#surfacePoint(pointer.worldX, pointer.worldY);
     this.#cursorX = dest.x;
     this.#cursorY = dest.y;
-    this.#isValidTarget = this.#terrain.isTerrainAt(
-      dest.x +
-        (PLANET_CENTER.x - dest.x) * (TERRAIN_CHECK_INSET / PLANET_RADIUS),
-      dest.y +
-        (PLANET_CENTER.y - dest.y) * (TERRAIN_CHECK_INSET / PLANET_RADIUS),
-    );
+    const check = this.#terrainCheckPoint(dest);
+    this.#isValidTarget = this.#terrain.isTerrainAt(check.x, check.y);
 
     this.#redrawCursor();
   }
@@ -88,12 +87,8 @@ export class Teleporter {
     if (!this.#active || !this.#worm) return false;
 
     const dest = this.#surfacePoint(worldX, worldY);
-    const valid = this.#terrain.isTerrainAt(
-      dest.x +
-        (PLANET_CENTER.x - dest.x) * (TERRAIN_CHECK_INSET / PLANET_RADIUS),
-      dest.y +
-        (PLANET_CENTER.y - dest.y) * (TERRAIN_CHECK_INSET / PLANET_RADIUS),
-    );
+    const check = this.#terrainCheckPoint(dest);
+    const valid = this.#terrain.isTerrainAt(check.x, check.y);
     if (!valid) return false;
 
     this.#active = false;
@@ -104,6 +99,20 @@ export class Teleporter {
   }
 
   // ──────────────────────────────── private helpers ───────────────────────────
+
+  /**
+   * Returns a point along the same radial direction as `dest`, placed
+   * `TERRAIN_CHECK_INSET` pixels inside the planet surface.
+   */
+  #terrainCheckPoint(dest: { x: number; y: number }): {
+    x: number;
+    y: number;
+  } {
+    return {
+      x: PLANET_CENTER.x + (dest.x - PLANET_CENTER.x) * TERRAIN_CHECK_SCALE,
+      y: PLANET_CENTER.y + (dest.y - PLANET_CENTER.y) * TERRAIN_CHECK_SCALE,
+    };
+  }
 
   /** Project a world-space point onto the planet surface. */
   #surfacePoint(worldX: number, worldY: number): { x: number; y: number } {

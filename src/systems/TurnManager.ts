@@ -18,6 +18,7 @@ export class TurnManager extends Phaser.Events.EventEmitter {
   readonly #teams: Character[][];
   readonly #teamWormIndices: number[];
   #currentTeamIndex: number;
+  #stopped = false;
 
   get currentTeamIndex(): number {
     return this.#currentTeamIndex;
@@ -62,7 +63,13 @@ export class TurnManager extends Phaser.Events.EventEmitter {
    * The current team's worm index is incremented (for their next appearance),
    * then control passes to the following team.
    */
+  /** Halts the turn cycle — nextTurn() becomes a no-op after this. */
+  stop(): void {
+    this.#stopped = true;
+  }
+
   nextTurn(): void {
+    if (this.#stopped) return;
     this.emit("turn-end");
     this.#deactivateCurrentWorm();
 

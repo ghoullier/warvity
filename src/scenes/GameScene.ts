@@ -28,6 +28,7 @@ export class GameScene extends Phaser.Scene {
   #terrain!: TerrainManager;
   #turnManager!: TurnManager;
   #allCharacters: Character[] = [];
+  #teams: Array<{ name: string; worms: Character[] }> = [];
   #projectiles: Projectile[] = [];
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   #cameraController!: CameraController;
@@ -76,6 +77,10 @@ export class GameScene extends Phaser.Scene {
     ];
 
     this.#allCharacters = [...teamA, ...teamB];
+    this.#teams = [
+      { name: "Team A", worms: teamA },
+      { name: "Team B", worms: teamB },
+    ];
     this.#turnManager = new TurnManager([teamA, teamB]);
 
     this.#turnManager.on("turn-start", (worm: Character) => {
@@ -111,16 +116,20 @@ export class GameScene extends Phaser.Scene {
     this.#cameraController.follow(this.#turnManager.getCurrentWorm());
 
     // Worm death events
-    this.events.on("worm-died", (worm: Character) => {
-      console.log(
-        `[TurnManager] ${worm.name} (team ${this.#turnManager.getActiveTeamIndex()}) died!`,
-      );
-
-      const surviving = this.#allCharacters.filter((c) => c.isAlive());
-      if (surviving.length === 0) {
-        console.log("All worms are dead — draw!");
-      } else if (surviving.length === 1) {
-        console.log(`${surviving[0].name} wins!`);
+    this.events.on("worm-died", (_worm: Character) => {
+      for (const team of this.#teams) {
+        if (team.worms.every((c) => !c.isAlive())) {
+          const winner = this.#teams.find(
+            (t) => t !== team && t.worms.some((c) => c.isAlive()),
+          );
+          this.#turnManager.stop();
+          if (winner) {
+            this.scene.launch("GameOver", { winner: winner.name });
+          } else {
+            this.scene.launch("GameOver", { winner: "Nobody" });
+          }
+          return;
+        }
       }
     });
 

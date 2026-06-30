@@ -6,6 +6,9 @@ const CHAR_WIDTH = 18;
 const CHAR_HEIGHT = 26;
 const MOVE_FORCE = 0.0012;
 const JUMP_FORCE = 0.008;
+const HP_BAR_WIDTH = 24;
+const HP_BAR_HEIGHT = 3;
+const HP_BAR_OFFSET_Y = -CHAR_HEIGHT / 2 - 18;
 
 /**
  * A player character standing on the planet surface.
@@ -20,10 +23,25 @@ const JUMP_FORCE = 0.008;
 export class Character {
   readonly body: MatterJS.BodyType;
   readonly #graphics: Phaser.GameObjects.Graphics;
+  readonly #hpBar: Phaser.GameObjects.Graphics;
   readonly #color: number;
+  readonly #scene: Phaser.Scene;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, color = 0xff6b35) {
+  #hp: number;
+  #maxHp: number;
+  #alive = true;
+
+  constructor(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    color = 0xff6b35,
+    maxHp = 100,
+  ) {
     this.#color = color;
+    this.#scene = scene;
+    this.#maxHp = maxHp;
+    this.#hp = maxHp;
 
     this.body = scene.matter.add.rectangle(x, y, CHAR_WIDTH, CHAR_HEIGHT, {
       label: "character",
@@ -39,7 +57,9 @@ export class Character {
     );
 
     this.#graphics = scene.add.graphics();
+    this.#hpBar = scene.add.graphics();
     this.#drawSprite();
+    this.#drawHpBar();
   }
 
   // ──────────────────────────────── private helpers ────────────────────────────
@@ -64,6 +84,42 @@ export class Character {
     this.#graphics.fillRect(2, -hh - 9, 2, 2);
   }
 
+  #drawHpBar(): void {
+    this.#hpBar.clear();
+
+    const ratio = this.#hp / this.#maxHp;
+    const fillWidth = Math.round(HP_BAR_WIDTH * ratio);
+
+    // Dark background
+    this.#hpBar.fillStyle(0x222222);
+    this.#hpBar.fillRect(
+      -HP_BAR_WIDTH / 2,
+      HP_BAR_OFFSET_Y,
+      HP_BAR_WIDTH,
+      HP_BAR_HEIGHT,
+    );
+
+    // Colour shifts from green (full) to red (empty)
+    const r = Math.round(255 * (1 - ratio));
+    const g = Math.round(255 * ratio);
+    const barColor = (r << 16) | (g << 8);
+    this.#hpBar.fillStyle(barColor);
+    this.#hpBar.fillRect(
+      -HP_BAR_WIDTH / 2,
+      HP_BAR_OFFSET_Y,
+      fillWidth,
+      HP_BAR_HEIGHT,
+    );
+  }
+
+  #die(): void {
+    this.#alive = false;
+    this.#scene.matter.world.remove(this.body, false);
+    this.#graphics.destroy();
+    this.#hpBar.destroy();
+    this.#scene.events.emit("worm-died", this);
+  }
+
   /** Angle from planet centre to character (the outward radial direction). */
   #radialAngle(): number {
     return Math.atan2(
@@ -74,8 +130,30 @@ export class Character {
 
   // ──────────────────────────────── public API ─────────────────────────────────
 
+  get hp(): number {
+    return this.#hp;
+  }
+
+  get maxHp(): number {
+    return this.#maxHp;
+  }
+
+  isAlive(): boolean {
+    return this.#alive;
+  }
+
+  /** Reduce HP by `amount`. Triggers death when HP drops to zero or below. */
+  takeDamage(amount: number): void {
+    if (!this.#alive) return;
+    this.#hp = Math.max(0, this.#hp - amount);
+    this.#drawHpBar();
+    if (this.#hp <= 0) this.#die();
+  }
+
   /** Called every frame to sync the visual representation with the physics body. */
   update(): void {
+    if (!this.#alive) return;
+
     const theta = this.#radialAngle();
 
     // Keep body upright relative to the planet surface
@@ -86,6 +164,9 @@ export class Character {
 
     this.#graphics.setPosition(this.body.position.x, this.body.position.y);
     this.#graphics.setRotation(theta + Math.PI / 2);
+
+    this.#hpBar.setPosition(this.body.position.x, this.body.position.y);
+    this.#hpBar.setRotation(theta + Math.PI / 2);
   }
 
   /** Move counterclockwise around the planet. */

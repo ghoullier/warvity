@@ -15,10 +15,10 @@ const EXPLOSION_RADIUS = 40;
  */
 export class Projectile {
   readonly body: MatterJS.BodyType;
-  private readonly graphics: Phaser.GameObjects.Graphics;
-  private readonly terrain: TerrainManager;
-  private readonly scene: Phaser.Scene;
-  private active = true;
+  readonly #graphics: Phaser.GameObjects.Graphics;
+  readonly #terrain: TerrainManager;
+  readonly #scene: Phaser.Scene;
+  #active = true;
 
   constructor(
     scene: Phaser.Scene,
@@ -28,8 +28,8 @@ export class Projectile {
     vy: number,
     terrain: TerrainManager,
   ) {
-    this.scene = scene;
-    this.terrain = terrain;
+    this.#scene = scene;
+    this.#terrain = terrain;
 
     this.body = scene.matter.add.circle(x, y, PROJECTILE_RADIUS, {
       label: "projectile",
@@ -42,22 +42,22 @@ export class Projectile {
       y: vy,
     });
 
-    this.graphics = scene.add.graphics();
-    this.graphics.fillStyle(0xffdd00);
-    this.graphics.fillCircle(0, 0, PROJECTILE_RADIUS);
+    this.#graphics = scene.add.graphics();
+    this.#graphics.fillStyle(0xffdd00);
+    this.#graphics.fillCircle(0, 0, PROJECTILE_RADIUS);
   }
 
   // ──────────────────────────────── public API ─────────────────────────────────
 
   isActive(): boolean {
-    return this.active;
+    return this.#active;
   }
 
   /** Called every frame. Returns false once the projectile has detonated. */
   update(): void {
-    if (!this.active) return;
+    if (!this.#active) return;
 
-    this.graphics.setPosition(this.body.position.x, this.body.position.y);
+    this.#graphics.setPosition(this.body.position.x, this.body.position.y);
 
     // Terrain hit: check if the projectile centre is inside solid terrain
     // or within the planet radius (catches tunnelling at high speed)
@@ -68,26 +68,26 @@ export class Projectile {
 
     if (
       distSq <= hitRadius * hitRadius ||
-      this.terrain.isTerrainAt(this.body.position.x, this.body.position.y)
+      this.#terrain.isTerrainAt(this.body.position.x, this.body.position.y)
     ) {
-      this.detonate();
+      this.#detonate();
     }
   }
 
   // ──────────────────────────────── private helpers ────────────────────────────
 
-  private detonate(): void {
-    this.active = false;
+  #detonate(): void {
+    this.#active = false;
 
-    this.terrain.explode(
+    this.#terrain.explode(
       this.body.position.x,
       this.body.position.y,
       EXPLOSION_RADIUS,
     );
 
     // Remove physics body from the world
-    this.scene.matter.world.remove(this.body, false);
+    this.#scene.matter.world.remove(this.body, false);
 
-    this.graphics.destroy();
+    this.#graphics.destroy();
   }
 }

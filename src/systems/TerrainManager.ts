@@ -22,23 +22,23 @@ interface Hole {
  * allowing point-in-terrain queries without hitting the GPU.
  */
 export class TerrainManager {
-  private readonly bitmap: Uint8Array;
-  private readonly bitmapSize: number;
-  private readonly bitmapOriginX: number;
-  private readonly bitmapOriginY: number;
-  private readonly renderTexture: Phaser.GameObjects.RenderTexture;
-  private readonly holes: Hole[] = [];
-  private readonly scene: Phaser.Scene;
+  readonly #bitmap: Uint8Array;
+  readonly #bitmapSize: number;
+  readonly #bitmapOriginX: number;
+  readonly #bitmapOriginY: number;
+  readonly #renderTexture: Phaser.GameObjects.RenderTexture;
+  readonly #holes: Hole[] = [];
+  readonly #scene: Phaser.Scene;
 
   constructor(scene: Phaser.Scene) {
-    this.scene = scene;
+    this.#scene = scene;
 
     // Bitmap covers the planet bounding square with 1-cell padding
-    this.bitmapSize = PLANET_RADIUS * 2 + 2;
-    this.bitmapOriginX = PLANET_CENTER.x - PLANET_RADIUS - 1;
-    this.bitmapOriginY = PLANET_CENTER.y - PLANET_RADIUS - 1;
-    this.bitmap = new Uint8Array(this.bitmapSize * this.bitmapSize);
-    this.fillBitmap();
+    this.#bitmapSize = PLANET_RADIUS * 2 + 2;
+    this.#bitmapOriginX = PLANET_CENTER.x - PLANET_RADIUS - 1;
+    this.#bitmapOriginY = PLANET_CENTER.y - PLANET_RADIUS - 1;
+    this.#bitmap = new Uint8Array(this.#bitmapSize * this.#bitmapSize);
+    this.#fillBitmap();
 
     // Create the physics body (static circle representing the planet)
     scene.matter.add.circle(PLANET_CENTER.x, PLANET_CENTER.y, PLANET_RADIUS, {
@@ -49,33 +49,33 @@ export class TerrainManager {
     });
 
     // Visual terrain drawn to a RenderTexture for efficient hole-punching
-    this.renderTexture = scene.add.renderTexture(
+    this.#renderTexture = scene.add.renderTexture(
       0,
       0,
       CANVAS_SIZE,
       CANVAS_SIZE,
     );
-    this.drawInitialTerrain();
+    this.#drawInitialTerrain();
   }
 
   // ──────────────────────────────── private helpers ────────────────────────────
 
-  private fillBitmap(): void {
-    const half = this.bitmapSize / 2;
+  #fillBitmap(): void {
+    const half = this.#bitmapSize / 2;
     const r2 = PLANET_RADIUS * PLANET_RADIUS;
 
-    for (let row = 0; row < this.bitmapSize; row++) {
-      for (let col = 0; col < this.bitmapSize; col++) {
+    for (let row = 0; row < this.#bitmapSize; row++) {
+      for (let col = 0; col < this.#bitmapSize; col++) {
         const dx = col - half;
         const dy = row - half;
-        this.bitmap[row * this.bitmapSize + col] =
+        this.#bitmap[row * this.#bitmapSize + col] =
           dx * dx + dy * dy <= r2 ? 1 : 0;
       }
     }
   }
 
-  private drawInitialTerrain(): void {
-    const gfx = this.scene.add.graphics();
+  #drawInitialTerrain(): void {
+    const gfx = this.#scene.add.graphics();
 
     // Outer rock layer
     gfx.fillStyle(0x5a4a3a);
@@ -89,7 +89,7 @@ export class TerrainManager {
     gfx.fillStyle(0x3d6e4e);
     gfx.fillCircle(PLANET_CENTER.x, PLANET_CENTER.y, PLANET_RADIUS * 0.6);
 
-    this.renderTexture.draw(gfx);
+    this.#renderTexture.draw(gfx);
     gfx.destroy();
   }
 
@@ -99,17 +99,17 @@ export class TerrainManager {
    * Returns true when world-space point (x, y) is inside solid terrain.
    */
   isTerrainAt(x: number, y: number): boolean {
-    const col = Math.round(x - this.bitmapOriginX);
-    const row = Math.round(y - this.bitmapOriginY);
+    const col = Math.round(x - this.#bitmapOriginX);
+    const row = Math.round(y - this.#bitmapOriginY);
     if (
       col < 0 ||
-      col >= this.bitmapSize ||
+      col >= this.#bitmapSize ||
       row < 0 ||
-      row >= this.bitmapSize
+      row >= this.#bitmapSize
     ) {
       return false;
     }
-    return this.bitmap[row * this.bitmapSize + col] === 1;
+    return this.#bitmap[row * this.#bitmapSize + col] === 1;
   }
 
   /**
@@ -125,26 +125,26 @@ export class TerrainManager {
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
         if (dx * dx + dy * dy > r2) continue;
-        const col = Math.round(x - this.bitmapOriginX) + dx;
-        const row = Math.round(y - this.bitmapOriginY) + dy;
+        const col = Math.round(x - this.#bitmapOriginX) + dx;
+        const row = Math.round(y - this.#bitmapOriginY) + dy;
         if (
           col < 0 ||
-          col >= this.bitmapSize ||
+          col >= this.#bitmapSize ||
           row < 0 ||
-          row >= this.bitmapSize
+          row >= this.#bitmapSize
         )
           continue;
-        this.bitmap[row * this.bitmapSize + col] = 0;
+        this.#bitmap[row * this.#bitmapSize + col] = 0;
       }
     }
 
-    this.holes.push({ x, y, radius });
+    this.#holes.push({ x, y, radius });
 
     // Erase the hole visually from the RenderTexture
-    const gfx = this.scene.add.graphics();
+    const gfx = this.#scene.add.graphics();
     gfx.fillStyle(0xffffff, 1);
     gfx.fillCircle(x, y, radius);
-    this.renderTexture.erase(gfx);
+    this.#renderTexture.erase(gfx);
     gfx.destroy();
   }
 }

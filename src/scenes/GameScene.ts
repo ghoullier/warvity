@@ -8,6 +8,7 @@ import {
 import { Character } from "../entities/Character";
 import { Grenade, MAX_GRENADE_SPEED } from "../entities/Grenade";
 import { Projectile } from "../entities/Projectile";
+import { Singularity } from "../entities/Singularity";
 import { Teleporter } from "../entities/Teleporter";
 import { AimingSystem } from "../systems/AimingSystem";
 import { AudioManager } from "../systems/AudioManager";
@@ -23,6 +24,8 @@ const EXPLOSION_RADIUS = 60;
 const MAX_EXPLOSION_DAMAGE = 50;
 const GRENADE_EXPLOSION_RADIUS = 50;
 const MAX_GRENADE_DAMAGE = 40;
+const SINGULARITY_EXPLOSION_RADIUS = 80;
+const MAX_SINGULARITY_DAMAGE = 60;
 
 const TEAM_COLORS = [0xff6b35, 0x35aaff, 0x35ff6b, 0xff35aa] as const;
 const TEAM_NAMES = ["Team A", "Team B", "Team C", "Team D"] as const;
@@ -50,7 +53,9 @@ export class GameScene extends Phaser.Scene {
   #teams: Array<{ name: string; worms: Character[] }> = [];
   #projectiles: Projectile[] = [];
   #grenades: Grenade[] = [];
-  #activeWeapon: "bazooka" | "grenade" | "teleporter" = "bazooka";
+  #singularities: Singularity[] = [];
+  #activeWeapon: "bazooka" | "grenade" | "teleporter" | "singularity" =
+    "bazooka";
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   #cameraController!: CameraController;
   #config = { teams: 2, wormsPerTeam: 1 };
@@ -71,6 +76,7 @@ export class GameScene extends Phaser.Scene {
     this.#teams = [];
     this.#projectiles = [];
     this.#grenades = [];
+    this.#singularities = [];
     this.#activeWeapon = "bazooka";
   }
 
@@ -92,7 +98,7 @@ export class GameScene extends Phaser.Scene {
     return this.#turnManager.getRemainingTime();
   }
 
-  get activeWeapon(): "bazooka" | "grenade" | "teleporter" {
+  get activeWeapon(): "bazooka" | "grenade" | "teleporter" | "singularity" {
     return this.#activeWeapon;
   }
 
@@ -184,6 +190,9 @@ export class GameScene extends Phaser.Scene {
         if (this.#activeWeapon === "grenade") {
           this.#fireGrenade(angle, power, worm);
           // Grenade: turn advances on explosion (see 'grenade-exploded')
+        } else if (this.#activeWeapon === "singularity") {
+          this.#fireSingularity(angle, power, worm);
+          // Singularity: turn advances on explosion (see 'singularity-exploded')
         } else {
           this.#fireProjectile(angle, power, worm);
           // Bazooka: turn advances once the projectile explodes (see 'projectile-exploded')
@@ -245,6 +254,33 @@ export class GameScene extends Phaser.Scene {
       this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
     });
 
+    // When the singularity detonates: destroy terrain, apply damage, advance turn
+    this.events.on(
+      "singularity-exploded",
+      ({ x, y }: { x: number; y: number }) => {
+        this.#audioManager.playExplosion();
+        this.#terrain.explode(x, y, SINGULARITY_EXPLOSION_RADIUS);
+        ParticleSystem.explode(this, x, y, PLANET_CENTER);
+        ParticleSystem.debris(this, x, y, PLANET_CENTER);
+
+        for (const worm of this.#allCharacters) {
+          if (!worm.isAlive()) continue;
+          const dx = worm.body.position.x - x;
+          const dy = worm.body.position.y - y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < SINGULARITY_EXPLOSION_RADIUS) {
+            const damage =
+              MAX_SINGULARITY_DAMAGE *
+              (1 - dist / SINGULARITY_EXPLOSION_RADIUS);
+            worm.takeDamage(damage);
+          }
+        }
+
+        this.#turnManager.nextTurn();
+        this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+      },
+    );
+
     // Log the initial worm and activate aiming on it
     const first = this.#turnManager.getCurrentWorm();
     console.log(
@@ -261,7 +297,12 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.input.keyboard?.on("keydown-Q", () => {
-      const weapons = ["bazooka", "grenade", "teleporter"] as const;
+      const weapons = [
+        "bazooka",
+        "grenade",
+        "singularity",
+        "teleporter",
+      ] as const;
       const idx = weapons.indexOf(this.#activeWeapon);
       // biome-ignore lint/style/noNonNullAssertion: modulo guarantees in-bounds index
       this.#activeWeapon = weapons[(idx + 1) % weapons.length]!;
@@ -354,6 +395,10 @@ export class GameScene extends Phaser.Scene {
     // Update grenades and discard inactive ones
     for (const g of this.#grenades) g.update();
     this.#grenades = this.#grenades.filter((g) => g.isActive());
+
+    // Update singularities and discard inactive ones
+    for (const s of this.#singularities) s.update();
+    this.#singularities = this.#singularities.filter((s) => s.isActive());
   }
 
   // ──────────────────────────────── private helpers ─────────────────────────────
@@ -394,6 +439,22 @@ export class GameScene extends Phaser.Scene {
 
     this.#grenades.push(
       new Grenade(
+        this,
+        cx + Math.cos(angle) * FIRE_OFFSET,
+        cy + Math.sin(angle) * FIRE_OFFSET,
+        Math.cos(angle) * speed,
+        Math.sin(angle) * speed,
+      ),
+    );
+  }
+
+  #fireSingularity(angle: number, power: number, character: Character): void {
+    const cx = character.body.position.x;
+    const cy = character.body.position.y;
+    const speed = power * MAX_FIRE_SPEED;
+
+    this.#singularities.push(
+      new Singularity(
         this,
         cx + Math.cos(angle) * FIRE_OFFSET,
         cy + Math.sin(angle) * FIRE_OFFSET,

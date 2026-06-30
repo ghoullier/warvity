@@ -1,0 +1,32 @@
+name: PR Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    env:
+      # Base path for the Vite build so assets load correctly from the sub-directory
+      VITE_BASE_PATH: /warvity/pr-preview/pr-${{ github.event.number }}/
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/build
+
+      - uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: ./dist
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview
+          action: auto

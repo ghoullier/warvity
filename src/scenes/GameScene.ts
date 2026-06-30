@@ -6,6 +6,7 @@ import {
   PLANET_RADIUS,
 } from "../config";
 import { Character } from "../entities/Character";
+import { Grenade, MAX_GRENADE_SPEED } from "../entities/Grenade";
 import { Projectile } from "../entities/Projectile";
 import { AimingSystem } from "../systems/AimingSystem";
 import { CameraController } from "../systems/CameraController";
@@ -24,6 +25,7 @@ const MAX_FIRE_SPEED = 12;
  *   Arrow Up            — jump
  *   Space (hold/release)— charge and fire projectile
  *   Tab                 — end current turn (advance to next worm / team)
+ *   Q                   — switch between Bazooka and Grenade
  */
 export class GameScene extends Phaser.Scene {
   #terrain!: TerrainManager;
@@ -32,6 +34,8 @@ export class GameScene extends Phaser.Scene {
   #allCharacters: Character[] = [];
   #teams: Array<{ name: string; worms: Character[] }> = [];
   #projectiles: Projectile[] = [];
+  #grenades: Grenade[] = [];
+  #activeWeapon: "bazooka" | "grenade" = "bazooka";
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   #cameraController!: CameraController;
 
@@ -106,7 +110,11 @@ export class GameScene extends Phaser.Scene {
         power: number;
         worm: Character;
       }) => {
-        this.#fireProjectile(angle, power, worm);
+        if (this.#activeWeapon === "grenade") {
+          this.#fireGrenade(angle, power, worm);
+        } else {
+          this.#fireProjectile(angle, power, worm);
+        }
         // Advance the turn automatically after firing
         this.#turnManager.nextTurn();
       },
@@ -125,6 +133,12 @@ export class GameScene extends Phaser.Scene {
       event.preventDefault();
       this.#aimingSystem.deactivate();
       this.#turnManager.nextTurn();
+    });
+
+    this.input.keyboard?.on("keydown-Q", () => {
+      this.#activeWeapon =
+        this.#activeWeapon === "bazooka" ? "grenade" : "bazooka";
+      this.events.emit("weapon-changed", this.#activeWeapon);
     });
 
     // Camera
@@ -161,7 +175,7 @@ export class GameScene extends Phaser.Scene {
       .text(
         10,
         10,
-        "↑ jump  ← → aim  Space (hold) charge + fire  Tab next turn",
+        "↑ jump  ← → aim  Space (hold) charge + fire  Tab next turn  Q weapon",
         {
           fontSize: "13px",
           color: "#aaaacc",
@@ -190,6 +204,10 @@ export class GameScene extends Phaser.Scene {
     // Update projectiles and discard detonated ones
     for (const p of this.#projectiles) p.update();
     this.#projectiles = this.#projectiles.filter((p) => p.isActive());
+
+    // Update grenades and discard inactive ones
+    for (const g of this.#grenades) g.update();
+    this.#grenades = this.#grenades.filter((g) => g.isActive());
   }
 
   // ──────────────────────────────── private helpers ─────────────────────────────
@@ -207,6 +225,22 @@ export class GameScene extends Phaser.Scene {
         Math.cos(angle) * speed,
         Math.sin(angle) * speed,
         this.#terrain,
+      ),
+    );
+  }
+
+  #fireGrenade(angle: number, power: number, character: Character): void {
+    const cx = character.body.position.x;
+    const cy = character.body.position.y;
+    const speed = power * MAX_GRENADE_SPEED;
+
+    this.#grenades.push(
+      new Grenade(
+        this,
+        cx + Math.cos(angle) * FIRE_OFFSET,
+        cy + Math.sin(angle) * FIRE_OFFSET,
+        Math.cos(angle) * speed,
+        Math.sin(angle) * speed,
       ),
     );
   }

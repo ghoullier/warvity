@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.1.0](https://github.com/ghoullier/warvity/compare/v1.0.0...v1.1.0) (2026-06-30)
+
+
+### Features
+
+* add bazooka aiming system with angle and power ([#21](https://github.com/ghoullier/warvity/issues/21)) ([f89fbc1](https://github.com/ghoullier/warvity/commit/f89fbc19a98334c60e9e7ecbee6dfba1fde7ce34)), closes [#11](https://github.com/ghoullier/warvity/issues/11)
+* add camera controller that follows active worm ([#16](https://github.com/ghoullier/warvity/issues/16)) ([9a1b350](https://github.com/ghoullier/warvity/commit/9a1b350a1ece3844b5a9d13140363a671713cbdc))
+* add deploy workflow for main branch to GitHub Pages ([#25](https://github.com/ghoullier/warvity/issues/25)) ([ef4d8c6](https://github.com/ghoullier/warvity/commit/ef4d8c620c4ce8e3496d83559f46fdacf1839c56))
+* add game over screen with winner display ([#19](https://github.com/ghoullier/warvity/issues/19)) ([24c835a](https://github.com/ghoullier/warvity/commit/24c835a8bc2d1a1fe5d6a0c01978ac64fa7bca46)), closes [#8](https://github.com/ghoullier/warvity/issues/8)
+* add grenade fuse timer and explosion ([#27](https://github.com/ghoullier/warvity/issues/27)) ([63fd5e5](https://github.com/ghoullier/warvity/commit/63fd5e5eac91f4060028d6d841069d2489c750d0))
+* add grenade with throw mechanics and surface bouncing ([#22](https://github.com/ghoullier/warvity/issues/22)) ([09acfba](https://github.com/ghoullier/warvity/commit/09acfbaee13a13d22cfaf6c63ea5678ecc2f9f25)), closes [#14](https://github.com/ghoullier/warvity/issues/14)
+* add health points and worm death system ([#17](https://github.com/ghoullier/warvity/issues/17)) ([555b9ea](https://github.com/ghoullier/warvity/commit/555b9eaa15acbb4e62b409995421b47d33b74184))
+* add HUD scene with timer, turn indicator and health bars ([#23](https://github.com/ghoullier/warvity/issues/23)) ([057f055](https://github.com/ghoullier/warvity/commit/057f05569d194a25948fd8023b78cc3ad3d6a16b)), closes [#7](https://github.com/ghoullier/warvity/issues/7)
+* add turn countdown timer with auto-switch ([#20](https://github.com/ghoullier/warvity/issues/20)) ([0f42e76](https://github.com/ghoullier/warvity/commit/0f42e764d8fd210637d6d3d2f11a3a19f9369f99)), closes [#10](https://github.com/ghoullier/warvity/issues/10)
+* bazooka explosion with terrain destruction and damage falloff ([#26](https://github.com/ghoullier/warvity/issues/26)) ([c4e0243](https://github.com/ghoullier/warvity/commit/c4e0243ce8bfa354e4f9612664e21e3a0cf15d8b)), closes [#13](https://github.com/ghoullier/warvity/issues/13)
+* implement bazooka projectile with radial gravity ([#24](https://github.com/ghoullier/warvity/issues/24)) ([3117428](https://github.com/ghoullier/warvity/commit/31174288039e03e6e79f7337d3f7393d1968d522)), closes [#12](https://github.com/ghoullier/warvity/issues/12)
+* implement TurnManager player alternation logic ([#18](https://github.com/ghoullier/warvity/issues/18)) ([5e61c9a](https://github.com/ghoullier/warvity/commit/5e61c9ad0da899d6f4f82c5fbfbd60c8bacde3ae)), closes [#9](https://github.com/ghoullier/warvity/issues/9)
+* initial game skeleton with radial gravity and destructible terrain ([#1](https://github.com/ghoullier/warvity/issues/1)) ([1bb1293](https://github.com/ghoullier/warvity/commit/1bb1293dc595bf4579f5d70247cd912bbafa39da))
+
+
+### Bug Fixes
+
+* add planet outline for better visual clarity ([#29](https://github.com/ghoullier/warvity/issues/29)) ([f55be39](https://github.com/ghoullier/warvity/commit/f55be3964363196dd6dffc6d1fb06ddf48324481))
+
 ## 1.0.0 (2024-02-10)
 
 

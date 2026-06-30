@@ -24,6 +24,9 @@ jobs:
       - uses: ./.github/actions/setup-bun
       - uses: ./.github/actions/build
 
+      - name: Add .nojekyll
+        run: touch ./dist/.nojekyll
+
       - uses: rossjrw/pr-preview-action@v1
         with:
           source-dir: ./dist

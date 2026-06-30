@@ -1,0 +1,10 @@
+version: 2
+updates:
+  - package-ecosystem: "bun"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "chore"
+      include: "scope"

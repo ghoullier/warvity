@@ -1,0 +1,40 @@
+{
+  "name": "@ghoullier/bun-typescript-template",
+  "description": "Provide a modern and ready to use template to setup a typescript project",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build:lib": "bun build --minify --outdir=dist src/index.ts",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build": "bun build:lib && bun build:types",
+    "lint": "npm run lint:lib && npm run lint:exports && npm run lint:package",
+    "lint:lib": "biome check src/*.ts",
+    "lint:exports": "attw --pack . --ignore-rules no-resolution cjs-resolves-to-esm",
+    "lint:package": "publint .",
+    "lint:fix": "biome check --write --unsafe"
+  },
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.4",
+    "@biomejs/biome": "2.5.1",
+    "@tsconfig/strictest": "2.0.8",
+    "@types/bun": "1.3.14",
+    "bun-types": "1.3.14",
+    "publint": "0.3.21",
+    "typescript": "6.0.3"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "license": "MIT"
+}

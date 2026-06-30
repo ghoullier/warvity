@@ -1,0 +1,48 @@
+on:
+  push:
+    branches:
+      - main
+
+name: Semantic Release
+
+permissions:
+  contents: read # For Checkout
+
+jobs:
+  release:
+    permissions:
+      contents: write # to create release commit (google-github-actions/release-please-action)
+      pull-requests: write # to create release PR (google-github-actions/release-please-action)
+      packages: write # to publish to GitHub Packages (actions/setup-node)
+      id-token: write # The OIDC ID token is used for authentication with JSR.
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: .github/config/release-please-config.json
+          manifest-file: .github/config/.release-please-config.json
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install
+      - run: bun --bun run build
+      - run: bun test
+      - uses: actions/setup-node@v6
+        with:
+          registry-url: "https://npm.pkg.github.com"
+        if: ${{ steps.release.outputs.release_created }}
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        if: ${{ steps.release.outputs.release_created }}
+      - run: |
+          bun run ./scripts/prerelease.ts
+          bunx jsr publish --allow-dirty
+        if: ${{ steps.release.outputs.release_created }}

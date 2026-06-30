@@ -8,6 +8,7 @@ import {
 import { Character } from "../entities/Character";
 import { Grenade, MAX_GRENADE_SPEED } from "../entities/Grenade";
 import { Projectile } from "../entities/Projectile";
+import { Teleporter } from "../entities/Teleporter";
 import { AimingSystem } from "../systems/AimingSystem";
 import { AudioManager } from "../systems/AudioManager";
 import { CameraController } from "../systems/CameraController";
@@ -44,11 +45,12 @@ export class GameScene extends Phaser.Scene {
   #turnManager!: TurnManager;
   #aimingSystem!: AimingSystem;
   #audioManager!: AudioManager;
+  #teleporter!: Teleporter;
   #allCharacters: Character[] = [];
   #teams: Array<{ name: string; worms: Character[] }> = [];
   #projectiles: Projectile[] = [];
   #grenades: Grenade[] = [];
-  #activeWeapon: "bazooka" | "grenade" = "bazooka";
+  #activeWeapon: "bazooka" | "grenade" | "teleporter" = "bazooka";
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   #cameraController!: CameraController;
   #config = { teams: 2, wormsPerTeam: 1 };
@@ -90,7 +92,7 @@ export class GameScene extends Phaser.Scene {
     return this.#turnManager.getRemainingTime();
   }
 
-  get activeWeapon(): "bazooka" | "grenade" {
+  get activeWeapon(): "bazooka" | "grenade" | "teleporter" {
     return this.#activeWeapon;
   }
 
@@ -146,6 +148,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.#turnManager = new TurnManager(this.#teams.map((team) => team.worms));
     this.#aimingSystem = new AimingSystem(this);
+    this.#teleporter = new Teleporter(this, this.#terrain);
 
     // Forward timer ticks to scene events for UIScene
     this.#turnManager.on("timer-tick", (remaining: number) => {
@@ -158,7 +161,7 @@ export class GameScene extends Phaser.Scene {
       );
       this.#audioManager.playTeleport();
       this.#cameraController.follow(worm);
-      this.#aimingSystem.activate(worm);
+      this.#activateCurrentWeapon(worm);
       this.#turnManager.startTimer(this);
       // Forward to scene events so UIScene can react
       const teamName =
@@ -236,6 +239,12 @@ export class GameScene extends Phaser.Scene {
       this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
     });
 
+    // When a teleport completes: advance the turn
+    this.events.on("teleport-complete", () => {
+      this.#turnManager.nextTurn();
+      this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+    });
+
     // Log the initial worm and activate aiming on it
     const first = this.#turnManager.getCurrentWorm();
     console.log(
@@ -252,9 +261,12 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.input.keyboard?.on("keydown-Q", () => {
-      this.#activeWeapon =
-        this.#activeWeapon === "bazooka" ? "grenade" : "bazooka";
+      const weapons = ["bazooka", "grenade", "teleporter"] as const;
+      const idx = weapons.indexOf(this.#activeWeapon);
+      // biome-ignore lint/style/noNonNullAssertion: modulo guarantees in-bounds index
+      this.#activeWeapon = weapons[(idx + 1) % weapons.length]!;
       this.events.emit("weapon-changed", this.#activeWeapon);
+      this.#activateCurrentWeapon(this.#turnManager.getCurrentWorm());
     });
 
     // Camera
@@ -264,9 +276,16 @@ export class GameScene extends Phaser.Scene {
     );
     this.#cameraController.follow(this.#turnManager.getCurrentWorm());
 
-    // Activate aiming on the first worm and start the first turn's timer
-    this.#aimingSystem.activate(first);
+    // Activate the current weapon on the first worm and start the first turn's timer
+    this.#activateCurrentWeapon(first);
     this.#turnManager.startTimer(this);
+
+    // Click to trigger teleportation when teleporter is the active weapon
+    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (this.#activeWeapon === "teleporter") {
+        this.#teleporter.handleClick(pointer.worldX, pointer.worldY);
+      }
+    });
 
     // Worm death events
     this.events.on("worm-died", (_worm: Character) => {
@@ -322,6 +341,9 @@ export class GameScene extends Phaser.Scene {
     // Aiming system handles ← → for rotation and Space for charge/fire
     this.#aimingSystem.update();
 
+    // Update teleporter cursor when active
+    this.#teleporter.update(this.input.activePointer);
+
     // Sync visuals for all characters across all teams
     for (const worm of this.#allCharacters) worm.update();
 
@@ -335,6 +357,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ──────────────────────────────── private helpers ─────────────────────────────
+
+  /** Activate the appropriate weapon UI for `worm` based on `#activeWeapon`. */
+  #activateCurrentWeapon(worm: Character): void {
+    if (this.#activeWeapon === "teleporter") {
+      this.#aimingSystem.deactivate();
+      this.#teleporter.activate(worm);
+    } else {
+      this.#teleporter.deactivate();
+      this.#aimingSystem.activate(worm);
+    }
+  }
 
   #fireProjectile(angle: number, power: number, character: Character): void {
     const cx = character.body.position.x;

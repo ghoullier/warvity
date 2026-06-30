@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { CANVAS_SIZE } from "./config";
+import { GameOverScene } from "./scenes/GameOverScene";
 import { GameScene } from "./scenes/GameScene";
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -14,7 +15,7 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [GameScene],
+  scene: [GameScene, GameOverScene],
 };
 
 new Phaser.Game(config);

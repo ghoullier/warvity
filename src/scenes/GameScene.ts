@@ -18,6 +18,8 @@ const FIRE_OFFSET = 40; // px from character centre before spawning projectile
 const MAX_FIRE_SPEED = 15;
 const EXPLOSION_RADIUS = 60;
 const MAX_EXPLOSION_DAMAGE = 50;
+const GRENADE_EXPLOSION_RADIUS = 50;
+const MAX_GRENADE_DAMAGE = 40;
 
 /**
  * Main game scene.
@@ -145,8 +147,7 @@ export class GameScene extends Phaser.Scene {
       }) => {
         if (this.#activeWeapon === "grenade") {
           this.#fireGrenade(angle, power, worm);
-          // Grenade: advance turn immediately (detonation-based advance is a future feature)
-          this.#turnManager.nextTurn();
+          // Grenade: turn advances on explosion (see 'grenade-exploded')
         } else {
           this.#fireProjectile(angle, power, worm);
           // Bazooka: turn advances once the projectile explodes (see 'projectile-exploded')
@@ -175,6 +176,26 @@ export class GameScene extends Phaser.Scene {
         this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
       },
     );
+
+    // When the grenade detonates: destroy terrain, apply damage, advance turn
+    this.events.on("grenade-exploded", ({ x, y }: { x: number; y: number }) => {
+      this.#terrain.explode(x, y, GRENADE_EXPLOSION_RADIUS);
+
+      for (const worm of this.#allCharacters) {
+        if (!worm.isAlive()) continue;
+        const dx = worm.body.position.x - x;
+        const dy = worm.body.position.y - y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < GRENADE_EXPLOSION_RADIUS) {
+          const damage =
+            MAX_GRENADE_DAMAGE * (1 - dist / GRENADE_EXPLOSION_RADIUS);
+          worm.takeDamage(damage);
+        }
+      }
+
+      this.#turnManager.nextTurn();
+      this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+    });
 
     // Log the initial worm and activate aiming on it
     const first = this.#turnManager.getCurrentWorm();

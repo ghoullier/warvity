@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { CANVAS_SIZE } from "./config";
 import { GameOverScene } from "./scenes/GameOverScene";
 import { GameScene } from "./scenes/GameScene";
+import { MenuScene } from "./scenes/MenuScene";
 import { UIScene } from "./scenes/UIScene";
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -16,7 +17,7 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [GameScene, UIScene, GameOverScene],
+  scene: [MenuScene, GameScene, UIScene, GameOverScene],
 };
 
 new Phaser.Game(config);

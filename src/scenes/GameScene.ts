@@ -22,8 +22,14 @@ const MAX_EXPLOSION_DAMAGE = 50;
 const GRENADE_EXPLOSION_RADIUS = 50;
 const MAX_GRENADE_DAMAGE = 40;
 
+const TEAM_COLORS = [0xff6b35, 0x35aaff, 0x35ff6b, 0xff35aa] as const;
+const TEAM_NAMES = ["Team A", "Team B", "Team C", "Team D"] as const;
+
 /**
  * Main game scene.
+ *
+ * Expects init data: `{ teams?: number; wormsPerTeam?: number }`.
+ * Defaults to 2 teams × 1 worm when launched without data.
  *
  * Controls:
  *   Arrow Left / Right  — rotate aim direction
@@ -44,9 +50,25 @@ export class GameScene extends Phaser.Scene {
   #activeWeapon: "bazooka" | "grenade" = "bazooka";
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   #cameraController!: CameraController;
+  #config = { teams: 2, wormsPerTeam: 1 };
 
   constructor() {
     super({ key: "GameScene" });
+  }
+
+  // ──────────────────────────────── init ────────────────────────────────────────
+
+  init(data: { teams?: number; wormsPerTeam?: number }): void {
+    this.#config = {
+      teams: data?.teams ?? 2,
+      wormsPerTeam: data?.wormsPerTeam ?? 1,
+    };
+    // Reset mutable state so the scene can be restarted cleanly
+    this.#allCharacters = [];
+    this.#teams = [];
+    this.#projectiles = [];
+    this.#grenades = [];
+    this.#activeWeapon = "bazooka";
   }
 
   // ──────────────────────────────── public getters ──────────────────────────────
@@ -96,34 +118,32 @@ export class GameScene extends Phaser.Scene {
     this.#audioManager = new AudioManager(this);
     this.#audioManager.startMusic();
 
-    // Two teams, each with one worm, on opposite poles
-    const teamA = [
-      new Character(
-        this,
-        PLANET_CENTER.x,
-        PLANET_CENTER.y - PLANET_RADIUS - 20,
-        0xff6b35,
-        100,
-        "Worm A1",
-      ),
-    ];
-    const teamB = [
-      new Character(
-        this,
-        PLANET_CENTER.x,
-        PLANET_CENTER.y + PLANET_RADIUS + 20,
-        0x35aaff,
-        100,
-        "Worm B1",
-      ),
-    ];
-
-    this.#allCharacters = [...teamA, ...teamB];
-    this.#teams = [
-      { name: "Team A", worms: teamA },
-      { name: "Team B", worms: teamB },
-    ];
-    this.#turnManager = new TurnManager([teamA, teamB]);
+    // Build teams and worms from configuration
+    for (let t = 0; t < this.#config.teams; t++) {
+      // Spread teams evenly around the planet, starting from the top
+      const teamAngle = (2 * Math.PI * t) / this.#config.teams - Math.PI / 2;
+      const worms: Character[] = [];
+      for (let w = 0; w < this.#config.wormsPerTeam; w++) {
+        // Spread each team's worms slightly along the surface
+        const spread = (w - (this.#config.wormsPerTeam - 1) / 2) * 0.18;
+        const wormAngle = teamAngle + spread;
+        const x = PLANET_CENTER.x + Math.cos(wormAngle) * (PLANET_RADIUS + 20);
+        const y = PLANET_CENTER.y + Math.sin(wormAngle) * (PLANET_RADIUS + 20);
+        worms.push(
+          new Character(
+            this,
+            x,
+            y,
+            TEAM_COLORS[t] ?? 0xffffff,
+            100,
+            `${TEAM_NAMES[t] ?? `Team ${t + 1}`} W${w + 1}`,
+          ),
+        );
+      }
+      this.#teams.push({ name: TEAM_NAMES[t] ?? `Team ${t + 1}`, worms });
+      this.#allCharacters.push(...worms);
+    }
+    this.#turnManager = new TurnManager(this.#teams.map((team) => team.worms));
     this.#aimingSystem = new AimingSystem(this);
 
     // Forward timer ticks to scene events for UIScene

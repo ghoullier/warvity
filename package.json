@@ -1,7 +1,7 @@
 {
   "name": "@ghoullier/warvity",
   "description": "Worms-like game with radial gravity on a circular planet — Phaser 3 + Matter.js + TypeScript + Bun",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "bun --bun node_modules/.bin/vite",

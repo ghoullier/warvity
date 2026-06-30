@@ -21,15 +21,18 @@ const HP_BAR_OFFSET_Y = -CHAR_HEIGHT / 2 - 18;
  * Jump adds a radial outward impulse.
  */
 export class Character {
+  readonly name: string;
   readonly body: MatterJS.BodyType;
   readonly #graphics: Phaser.GameObjects.Graphics;
   readonly #hpBar: Phaser.GameObjects.Graphics;
+  readonly #indicator: Phaser.GameObjects.Graphics;
   readonly #color: number;
   readonly #scene: Phaser.Scene;
 
   #hp: number;
   #maxHp: number;
   #alive = true;
+  #active = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -37,7 +40,9 @@ export class Character {
     y: number,
     color = 0xff6b35,
     maxHp = 100,
+    name = "Worm",
   ) {
+    this.name = name;
     this.#color = color;
     this.#scene = scene;
     this.#maxHp = maxHp;
@@ -58,11 +63,30 @@ export class Character {
 
     this.#graphics = scene.add.graphics();
     this.#hpBar = scene.add.graphics();
+    this.#indicator = scene.add.graphics();
     this.#drawSprite();
     this.#drawHpBar();
   }
 
   // ──────────────────────────────── private helpers ────────────────────────────
+
+  #drawIndicator(): void {
+    this.#indicator.clear();
+    if (!this.#active) return;
+
+    // Small arrow pointing toward the character (in local space, "up" = toward head)
+    const hh = CHAR_HEIGHT / 2;
+    const arrowTip = -hh - 18;
+    this.#indicator.fillStyle(0xffff00, 0.9);
+    this.#indicator.fillTriangle(
+      -5,
+      arrowTip - 8,
+      5,
+      arrowTip - 8,
+      0,
+      arrowTip,
+    );
+  }
 
   #drawSprite(): void {
     const hw = CHAR_WIDTH / 2;
@@ -117,6 +141,7 @@ export class Character {
     this.#scene.matter.world.remove(this.body, false);
     this.#graphics.destroy();
     this.#hpBar.destroy();
+    this.#indicator.destroy();
     this.#scene.events.emit("worm-died", this);
   }
 
@@ -150,6 +175,12 @@ export class Character {
     if (this.#hp <= 0) this.#die();
   }
 
+  /** Highlight this worm as the active one (or remove the highlight). */
+  setActive(active: boolean): void {
+    this.#active = active;
+    this.#drawIndicator();
+  }
+
   /** Called every frame to sync the visual representation with the physics body. */
   update(): void {
     if (!this.#alive) return;
@@ -167,6 +198,10 @@ export class Character {
 
     this.#hpBar.setPosition(this.body.position.x, this.body.position.y);
     this.#hpBar.setRotation(theta + Math.PI / 2);
+
+    // Sync the active indicator (always above the character head in world space)
+    this.#indicator.setPosition(this.body.position.x, this.body.position.y);
+    this.#indicator.setRotation(theta + Math.PI / 2);
   }
 
   /** Move counterclockwise around the planet. */

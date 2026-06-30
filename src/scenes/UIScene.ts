@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { CANVAS_SIZE } from "../config";
 import type { Character } from "../entities/Character";
+import type { AudioManager } from "../systems/AudioManager";
 import type { GameScene } from "./GameScene";
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -32,8 +33,10 @@ export class UIScene extends Phaser.Scene {
   #timerText!: Phaser.GameObjects.Text;
   #turnText!: Phaser.GameObjects.Text;
   #weaponText!: Phaser.GameObjects.Text;
+  #muteBtn!: Phaser.GameObjects.Text;
   #panelBg!: Phaser.GameObjects.Graphics;
   #wormRows = new Map<string, WormRow>();
+  #audioManager: AudioManager | null = null;
 
   constructor() {
     super({ key: "UIScene" });
@@ -43,6 +46,7 @@ export class UIScene extends Phaser.Scene {
 
   create(): void {
     const game = this.scene.get("GameScene") as GameScene;
+    this.#audioManager = game.audioManager;
 
     // ── Timer (top center) ────────────────────────────────────────────────────
     this.#timerText = this.add
@@ -77,6 +81,21 @@ export class UIScene extends Phaser.Scene {
       .setOrigin(1, 1)
       .setDepth(20);
     this.#applyWeaponChange(game.activeWeapon);
+
+    // ── Mute button (bottom left) ─────────────────────────────────────────────
+    this.#muteBtn = this.add
+      .text(10, CANVAS_SIZE - 10, "🔊", {
+        fontSize: "22px",
+        backgroundColor: "#00000099",
+        padding: { x: 6, y: 4 },
+      })
+      .setOrigin(0, 1)
+      .setDepth(20)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => {
+        const muted = this.#audioManager?.toggleMute() ?? false;
+        this.#muteBtn.setText(muted ? "🔇" : "🔊");
+      });
 
     // ── HP panel (top right) ──────────────────────────────────────────────────
     this.#panelBg = this.add.graphics().setDepth(19);

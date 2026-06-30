@@ -61,7 +61,7 @@ export class GameOverScene extends Phaser.Scene {
     btn.on("pointerdown", () => {
       this.scene.stop("GameOver");
       this.scene.stop("UIScene");
-      this.scene.start("GameScene");
+      this.scene.start("MenuScene");
     });
   }
 }

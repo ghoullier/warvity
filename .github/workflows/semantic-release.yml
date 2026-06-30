@@ -34,22 +34,21 @@ jobs:
       - run: bun --bun run build
       - run: bun test
 
-      - name: Set base path for release
+      - name: Build release with versioned base path
         if: ${{ steps.release.outputs.release_created }}
         run: bun --bun run build
         env:
-          VITE_BASE_PATH: /warvity/
+          VITE_BASE_PATH: /warvity/${{ steps.release.outputs.tag_name }}/
 
       - name: Add .nojekyll
         if: ${{ steps.release.outputs.release_created }}
         run: touch ./dist/.nojekyll
 
-      - name: Deploy release to GitHub Pages
+      - name: Deploy release to GitHub Pages (versioned)
         if: ${{ steps.release.outputs.release_created }}
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+          destination_dir: ${{ steps.release.outputs.tag_name }}
           keep_files: true
-          tag_name: ${{ steps.release.outputs.tag_name }}
-          tag_message: "Release ${{ steps.release.outputs.tag_name }}"

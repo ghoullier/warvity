@@ -5,6 +5,7 @@ import {
   PLANET_CENTER,
   PLANET_RADIUS,
 } from "../config";
+import { DEFAULT_PLANET_STYLE, type PlanetStyle } from "../config/PlanetStyles";
 import { Character } from "../entities/Character";
 import { GravityBoost } from "../entities/GravityBoost";
 import { Grenade, MAX_GRENADE_SPEED } from "../entities/Grenade";
@@ -66,6 +67,7 @@ export class GameScene extends Phaser.Scene {
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   #cameraController!: CameraController;
   #config = { teams: 2, wormsPerTeam: 1 };
+  #planetStyle: PlanetStyle = DEFAULT_PLANET_STYLE;
 
   constructor() {
     super({ key: "GameScene" });
@@ -73,11 +75,16 @@ export class GameScene extends Phaser.Scene {
 
   // ──────────────────────────────── init ────────────────────────────────────────
 
-  init(data: { teams?: number; wormsPerTeam?: number }): void {
+  init(data: {
+    teams?: number;
+    wormsPerTeam?: number;
+    planetStyle?: PlanetStyle;
+  }): void {
     this.#config = {
       teams: data?.teams ?? 2,
       wormsPerTeam: data?.wormsPerTeam ?? 1,
     };
+    this.#planetStyle = data?.planetStyle ?? DEFAULT_PLANET_STYLE;
     // Reset mutable state so the scene can be restarted cleanly
     this.#allCharacters = [];
     this.#teams = [];
@@ -123,17 +130,11 @@ export class GameScene extends Phaser.Scene {
   // Called by Phaser when the scene starts (not declared in the base class type)
   create(): void {
     // Starfield background
-    this.add.rectangle(
-      CANVAS_SIZE / 2,
-      CANVAS_SIZE / 2,
-      CANVAS_SIZE,
-      CANVAS_SIZE,
-      0x0a0a1a,
-    );
+    this.cameras.main.setBackgroundColor(this.#planetStyle.background);
     this.#addStars();
 
     // Planet terrain
-    this.#terrain = new TerrainManager(this);
+    this.#terrain = new TerrainManager(this, this.#planetStyle);
 
     // Audio
     this.#audioManager = new AudioManager(this);

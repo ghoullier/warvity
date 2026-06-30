@@ -11,10 +11,8 @@ permissions:
 jobs:
   release:
     permissions:
-      contents: write # to create release commit (google-github-actions/release-please-action)
-      pull-requests: write # to create release PR (google-github-actions/release-please-action)
-      packages: write # to publish to GitHub Packages (actions/setup-node)
-      id-token: write # The OIDC ID token is used for authentication with JSR.
+      contents: write # to create release commit (googleapis/release-please-action)
+      pull-requests: write # to create release PR (googleapis/release-please-action)
 
     runs-on: ubuntu-latest
     steps:
@@ -31,18 +29,6 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      - run: bun install
+      - run: bun install --frozen-lockfile
       - run: bun --bun run build
       - run: bun test
-      - uses: actions/setup-node@v6
-        with:
-          registry-url: "https://npm.pkg.github.com"
-        if: ${{ steps.release.outputs.release_created }}
-      - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
-        if: ${{ steps.release.outputs.release_created }}
-      - run: |
-          bun run ./scripts/prerelease.ts
-          bunx jsr publish --allow-dirty
-        if: ${{ steps.release.outputs.release_created }}

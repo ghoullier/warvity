@@ -7,26 +7,28 @@ import {
 } from "../config";
 import { Character } from "../entities/Character";
 import { Projectile } from "../entities/Projectile";
+import { AimingSystem } from "../systems/AimingSystem";
 import { CameraController } from "../systems/CameraController";
 import { applyRadialGravity } from "../systems/GravitySystem";
 import { TerrainManager } from "../systems/TerrainManager";
 import { TurnManager } from "../systems/TurnManager";
 
-const FIRE_SPEED = 6;
 const FIRE_OFFSET = 40; // px from character centre before spawning projectile
+const MAX_FIRE_SPEED = 12;
 
 /**
  * Main game scene.
  *
  * Controls:
- *   Arrow Left / Right  — move active character around the planet
+ *   Arrow Left / Right  — rotate aim direction
  *   Arrow Up            — jump
- *   Space               — fire a projectile outward from the planet surface
+ *   Space (hold/release)— charge and fire projectile
  *   Tab                 — end current turn (advance to next worm / team)
  */
 export class GameScene extends Phaser.Scene {
   #terrain!: TerrainManager;
   #turnManager!: TurnManager;
+  #aimingSystem!: AimingSystem;
   #allCharacters: Character[] = [];
   #projectiles: Projectile[] = [];
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
@@ -77,15 +79,34 @@ export class GameScene extends Phaser.Scene {
 
     this.#allCharacters = [...teamA, ...teamB];
     this.#turnManager = new TurnManager([teamA, teamB]);
+    this.#aimingSystem = new AimingSystem(this);
 
     this.#turnManager.on("turn-start", (worm: Character) => {
       console.log(
         `[TurnManager] Turn started — active worm: ${worm.name} (team ${this.#turnManager.getActiveTeamIndex()})`,
       );
       this.#cameraController.follow(worm);
+      this.#aimingSystem.activate(worm);
     });
 
-    // Log the initial worm
+    this.events.on(
+      "fire",
+      ({
+        angle,
+        power,
+        worm,
+      }: {
+        angle: number;
+        power: number;
+        worm: Character;
+      }) => {
+        this.#fireProjectile(angle, power, worm);
+        // Advance the turn automatically after firing
+        this.#turnManager.nextTurn();
+      },
+    );
+
+    // Log the initial worm and activate aiming on it
     const first = this.#turnManager.getCurrentWorm();
     console.log(
       `[TurnManager] Game start — active worm: ${first.name} (team ${this.#turnManager.getActiveTeamIndex()})`,
@@ -94,12 +115,9 @@ export class GameScene extends Phaser.Scene {
     // Keyboard input
     this.#cursors = this.input.keyboard?.createCursorKeys();
 
-    this.input.keyboard?.on("keydown-SPACE", () => {
-      this.#fireProjectile();
-    });
-
     this.input.keyboard?.on("keydown-TAB", (event: KeyboardEvent) => {
       event.preventDefault();
+      this.#aimingSystem.deactivate();
       this.#turnManager.nextTurn();
     });
 
@@ -109,6 +127,9 @@ export class GameScene extends Phaser.Scene {
       PLANET_CENTER,
     );
     this.#cameraController.follow(this.#turnManager.getCurrentWorm());
+
+    // Activate aiming on the first worm
+    this.#aimingSystem.activate(first);
 
     // Worm death events
     this.events.on("worm-died", (worm: Character) => {
@@ -126,10 +147,15 @@ export class GameScene extends Phaser.Scene {
 
     // HUD
     this.add
-      .text(10, 10, "← → move  ↑ jump  Space fire  Tab next turn", {
-        fontSize: "13px",
-        color: "#aaaacc",
-      })
+      .text(
+        10,
+        10,
+        "↑ jump  ← → aim  Space (hold) charge + fire  Tab next turn",
+        {
+          fontSize: "13px",
+          color: "#aaaacc",
+        },
+      )
       .setDepth(10);
   }
 
@@ -138,13 +164,14 @@ export class GameScene extends Phaser.Scene {
     const bodies = this.matter.world.getAllBodies();
     applyRadialGravity(bodies, PLANET_CENTER, GRAVITY_STRENGTH);
 
-    // Character controls — only the active worm responds
+    // Character movement — only the active worm responds (← → now rotate aim, ↑ still jumps)
     const active = this.#turnManager.getCurrentWorm();
     if (active?.isAlive() && this.#cursors) {
-      if (this.#cursors.left.isDown) active.moveLeft();
-      else if (this.#cursors.right.isDown) active.moveRight();
       if (Phaser.Input.Keyboard.JustDown(this.#cursors.up)) active.jump();
     }
+
+    // Aiming system handles ← → for rotation and Space for charge/fire
+    this.#aimingSystem.update();
 
     // Sync visuals for all characters across all teams
     for (const worm of this.#allCharacters) worm.update();
@@ -156,27 +183,18 @@ export class GameScene extends Phaser.Scene {
 
   // ──────────────────────────────── private helpers ─────────────────────────────
 
-  #fireProjectile(): void {
-    const character = this.#turnManager.getCurrentWorm();
-
-    // Direction: outward from planet centre through the character
+  #fireProjectile(angle: number, power: number, character: Character): void {
     const cx = character.body.position.x;
     const cy = character.body.position.y;
-    const dx = cx - PLANET_CENTER.x;
-    const dy = cy - PLANET_CENTER.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist === 0) return;
-
-    const nx = dx / dist;
-    const ny = dy / dist;
+    const speed = power * MAX_FIRE_SPEED;
 
     this.#projectiles.push(
       new Projectile(
         this,
-        cx + nx * FIRE_OFFSET,
-        cy + ny * FIRE_OFFSET,
-        nx * FIRE_SPEED,
-        ny * FIRE_SPEED,
+        cx + Math.cos(angle) * FIRE_OFFSET,
+        cy + Math.sin(angle) * FIRE_OFFSET,
+        Math.cos(angle) * speed,
+        Math.sin(angle) * speed,
         this.#terrain,
       ),
     );

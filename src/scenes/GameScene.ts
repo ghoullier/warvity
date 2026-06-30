@@ -92,6 +92,25 @@ export class GameScene extends Phaser.Scene {
     const firstChar = this.#characters[0];
     if (firstChar) this.#cameraController.follow(firstChar);
 
+    // Worm death events
+    this.events.on("worm-died", (character: Character) => {
+      const index = this.#characters.indexOf(character);
+      console.log(`Worm ${index} died!`);
+
+      // Remove dead worm from active rotation
+      if (this.#activeIndex >= this.#characters.length - 1) {
+        this.#activeIndex = 0;
+      }
+
+      const surviving = this.#characters.filter((c) => c.isAlive());
+      if (surviving.length === 0) {
+        console.log("All worms are dead — draw!");
+      } else if (surviving.length === 1) {
+        const winnerId = this.#characters.indexOf(surviving[0]);
+        console.log(`Worm ${winnerId} wins!`);
+      }
+    });
+
     // HUD
     this.add
       .text(10, 10, "← → move  ↑ jump  Space fire  Tab switch", {
@@ -108,7 +127,7 @@ export class GameScene extends Phaser.Scene {
 
     // Character controls
     const active = this.#characters[this.#activeIndex];
-    if (active && this.#cursors) {
+    if (active?.isAlive() && this.#cursors) {
       if (this.#cursors.left.isDown) active.moveLeft();
       else if (this.#cursors.right.isDown) active.moveRight();
       if (Phaser.Input.Keyboard.JustDown(this.#cursors.up)) active.jump();

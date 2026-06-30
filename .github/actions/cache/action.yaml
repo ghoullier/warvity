@@ -15,7 +15,7 @@ runs:
       if: ${{ contains(inputs.scope, 'dependencies') }}
       uses: actions/cache@v5
       with:
-        key: dependencies-${{ hashFiles('./bun.lockb') }}
+        key: dependencies-${{ hashFiles('./bun.lock') }}
         path: |
           ./node_modules/**
 

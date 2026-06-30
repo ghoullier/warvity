@@ -13,6 +13,7 @@ jobs:
     permissions:
       contents: write # to create release commit (googleapis/release-please-action)
       pull-requests: write # to create release PR (googleapis/release-please-action)
+      pages: write # to deploy to GitHub Pages
 
     runs-on: ubuntu-latest
     steps:
@@ -32,3 +33,22 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun --bun run build
       - run: bun test
+
+      - name: Build release with versioned base path
+        if: ${{ steps.release.outputs.release_created }}
+        run: bun --bun run build
+        env:
+          VITE_BASE_PATH: /warvity/${{ steps.release.outputs.tag_name }}/
+
+      - name: Add .nojekyll
+        if: ${{ steps.release.outputs.release_created }}
+        run: touch ./dist/.nojekyll
+
+      - name: Deploy release to GitHub Pages (versioned)
+        if: ${{ steps.release.outputs.release_created }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          destination_dir: ${{ steps.release.outputs.tag_name }}
+          keep_files: true

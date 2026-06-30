@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.2.0](https://github.com/ghoullier/warvity/compare/v1.1.0...v1.2.0) (2026-06-30)
+
+
+### Features
+
+* add explosion particles and terrain debris effects ([#40](https://github.com/ghoullier/warvity/issues/40)) ([408e992](https://github.com/ghoullier/warvity/commit/408e9929fd86b4962e742481fa0692879c917cce)), closes [#32](https://github.com/ghoullier/warvity/issues/32)
+* add gravity boost weapon with 2x/0.5x/reverse modes ([#42](https://github.com/ghoullier/warvity/issues/42)) ([779cda8](https://github.com/ghoullier/warvity/commit/779cda81f934be1136c63bff1073dbafe1bfde63)), closes [#34](https://github.com/ghoullier/warvity/issues/34)
+* add main menu with team and worm count selection ([#39](https://github.com/ghoullier/warvity/issues/39)) ([1f212be](https://github.com/ghoullier/warvity/commit/1f212be5ce0e6ddbc09b33519f8bdf4fee8ddb2b))
+* add planet styles system ([#46](https://github.com/ghoullier/warvity/issues/46)) ([ca350ca](https://github.com/ghoullier/warvity/commit/ca350ca18386d1d526972547f6e7a1ccf6fc8571)), closes [#45](https://github.com/ghoullier/warvity/issues/45)
+* add procedural sound effects and background music ([#38](https://github.com/ghoullier/warvity/issues/38)) ([0f98760](https://github.com/ghoullier/warvity/commit/0f9876034179b86aa789c76ecc00da4f763e4cad)), closes [#36](https://github.com/ghoullier/warvity/issues/36)
+* add singularity black hole weapon ([#43](https://github.com/ghoullier/warvity/issues/43)) ([9392e5b](https://github.com/ghoullier/warvity/commit/9392e5ba7351b9a81845d8d9564f2cd56e21db50)), closes [#33](https://github.com/ghoullier/warvity/issues/33)
+* add teleporter weapon ([#41](https://github.com/ghoullier/warvity/issues/41)) ([f77d221](https://github.com/ghoullier/warvity/commit/f77d221307d045bb99073a111affb01af0310acb))
+* deploy to GitHub Pages on release-please release ([#30](https://github.com/ghoullier/warvity/issues/30)) ([d04daa3](https://github.com/ghoullier/warvity/commit/d04daa37ddfbbaf2891d5d8588a8c08a1fdce6ee))
+
+
+### Bug Fixes
+
+* teleporter weapon not working ([#47](https://github.com/ghoullier/warvity/issues/47)) ([f5ef57d](https://github.com/ghoullier/warvity/commit/f5ef57dd15d18d800adf8921046500d1d638102c)), closes [#44](https://github.com/ghoullier/warvity/issues/44)
+
 ## [1.1.0](https://github.com/ghoullier/warvity/compare/v1.0.0...v1.1.0) (2026-06-30)
 
 

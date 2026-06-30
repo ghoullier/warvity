@@ -7,6 +7,7 @@ import {
 } from "../config";
 import { Character } from "../entities/Character";
 import { Projectile } from "../entities/Projectile";
+import { CameraController } from "../systems/CameraController";
 import { applyRadialGravity } from "../systems/GravitySystem";
 import { TerrainManager } from "../systems/TerrainManager";
 
@@ -28,6 +29,7 @@ export class GameScene extends Phaser.Scene {
   #projectiles: Projectile[] = [];
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   #activeIndex = 0;
+  #cameraController!: CameraController;
 
   constructor() {
     super({ key: "GameScene" });
@@ -78,7 +80,17 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard?.on("keydown-TAB", (event: KeyboardEvent) => {
       event.preventDefault();
       this.#activeIndex = (this.#activeIndex + 1) % this.#characters.length;
+      const newActive = this.#characters[this.#activeIndex];
+      if (newActive) this.#cameraController.follow(newActive);
     });
+
+    // Camera
+    this.#cameraController = new CameraController(
+      this.cameras.main,
+      PLANET_CENTER,
+    );
+    const firstChar = this.#characters[0];
+    if (firstChar) this.#cameraController.follow(firstChar);
 
     // HUD
     this.add

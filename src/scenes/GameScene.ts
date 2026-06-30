@@ -6,6 +6,7 @@ import {
   PLANET_RADIUS,
 } from "../config";
 import { Character } from "../entities/Character";
+import { GravityBoost } from "../entities/GravityBoost";
 import { Grenade, MAX_GRENADE_SPEED } from "../entities/Grenade";
 import { Projectile } from "../entities/Projectile";
 import { Singularity } from "../entities/Singularity";
@@ -41,7 +42,7 @@ const TEAM_NAMES = ["Team A", "Team B", "Team C", "Team D"] as const;
  *   Arrow Up            — jump
  *   Space (hold/release)— charge and fire projectile
  *   Tab                 — end current turn (advance to next worm / team)
- *   Q                   — switch between Bazooka and Grenade
+ *   Q                   — cycle weapons: Bazooka → Grenade → Gravity Boost → …
  */
 export class GameScene extends Phaser.Scene {
   #terrain!: TerrainManager;
@@ -54,8 +55,14 @@ export class GameScene extends Phaser.Scene {
   #projectiles: Projectile[] = [];
   #grenades: Grenade[] = [];
   #singularities: Singularity[] = [];
-  #activeWeapon: "bazooka" | "grenade" | "teleporter" | "singularity" =
-    "bazooka";
+  #activeWeapon:
+    | "bazooka"
+    | "grenade"
+    | "teleporter"
+    | "singularity"
+    | "gravity-boost" = "bazooka";
+  #gravityMultiplier = 1;
+  #activeGravityBoost: GravityBoost | null = null;
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   #cameraController!: CameraController;
   #config = { teams: 2, wormsPerTeam: 1 };
@@ -98,7 +105,12 @@ export class GameScene extends Phaser.Scene {
     return this.#turnManager.getRemainingTime();
   }
 
-  get activeWeapon(): "bazooka" | "grenade" | "teleporter" | "singularity" {
+  get activeWeapon():
+    | "bazooka"
+    | "grenade"
+    | "teleporter"
+    | "singularity"
+    | "gravity-boost" {
     return this.#activeWeapon;
   }
 
@@ -187,7 +199,10 @@ export class GameScene extends Phaser.Scene {
         worm: Character;
       }) => {
         this.#audioManager.playFire();
-        if (this.#activeWeapon === "grenade") {
+        if (this.#activeWeapon === "gravity-boost") {
+          this.#activateGravityBoost();
+          // Turn advances after the 5-second boost (handled inside GravityBoost)
+        } else if (this.#activeWeapon === "grenade") {
           this.#fireGrenade(angle, power, worm);
           // Grenade: turn advances on explosion (see 'grenade-exploded')
         } else if (this.#activeWeapon === "singularity") {
@@ -302,6 +317,7 @@ export class GameScene extends Phaser.Scene {
         "grenade",
         "singularity",
         "teleporter",
+        "gravity-boost",
       ] as const;
       const idx = weapons.indexOf(this.#activeWeapon);
       // biome-ignore lint/style/noNonNullAssertion: modulo guarantees in-bounds index
@@ -336,6 +352,8 @@ export class GameScene extends Phaser.Scene {
           const winner = this.#teams.find(
             (t) => t !== team && t.worms.some((c) => c.isAlive()),
           );
+          this.#activeGravityBoost?.cancel();
+          this.#activeGravityBoost = null;
           this.#turnManager.stop();
           if (winner) {
             this.scene.launch("GameOver", { winner: winner.name });
@@ -366,9 +384,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   override update(_time: number, _delta: number): void {
-    // Radial gravity for all dynamic bodies
+    // Radial gravity for all dynamic bodies (multiplier modified by GravityBoost)
     const bodies = this.matter.world.getAllBodies();
-    applyRadialGravity(bodies, PLANET_CENTER, GRAVITY_STRENGTH);
+    applyRadialGravity(
+      bodies,
+      PLANET_CENTER,
+      GRAVITY_STRENGTH,
+      this.#gravityMultiplier,
+    );
 
     // Character movement — only the active worm responds (← → now rotate aim, ↑ still jumps)
     const active = this.#turnManager.getCurrentWorm();
@@ -412,6 +435,24 @@ export class GameScene extends Phaser.Scene {
       this.#teleporter.deactivate();
       this.#aimingSystem.activate(worm);
     }
+  }
+
+  #activateGravityBoost(): void {
+    if (this.#activeGravityBoost?.isActive()) return;
+    this.#turnManager.stopTimer();
+    const boost = new GravityBoost(
+      this,
+      (m) => {
+        this.#gravityMultiplier = m;
+      },
+      () => {
+        this.#activeGravityBoost = null;
+        this.#turnManager.nextTurn();
+        this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+      },
+    );
+    this.#activeGravityBoost = boost;
+    boost.activate();
   }
 
   #fireProjectile(angle: number, power: number, character: Character): void {

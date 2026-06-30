@@ -34,6 +34,7 @@ export class UIScene extends Phaser.Scene {
   #turnText!: Phaser.GameObjects.Text;
   #weaponText!: Phaser.GameObjects.Text;
   #muteBtn!: Phaser.GameObjects.Text;
+  #gravityText!: Phaser.GameObjects.Text;
   #panelBg!: Phaser.GameObjects.Graphics;
   #wormRows = new Map<string, WormRow>();
   #audioManager: AudioManager | null = null;
@@ -97,6 +98,18 @@ export class UIScene extends Phaser.Scene {
         this.#muteBtn.setText(muted ? "🔇" : "🔊");
       });
 
+    // ── Gravity boost status (bottom center) ─────────────────────────────────
+    this.#gravityText = this.add
+      .text(CANVAS_SIZE / 2, CANVAS_SIZE - 10, "", {
+        fontSize: "15px",
+        color: "#aaffff",
+        backgroundColor: "#00000099",
+        padding: { x: 8, y: 5 },
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(20)
+      .setVisible(false);
+
     // ── HP panel (top right) ──────────────────────────────────────────────────
     this.#panelBg = this.add.graphics().setDepth(19);
     this.#buildHpPanel(game.teams);
@@ -124,8 +137,20 @@ export class UIScene extends Phaser.Scene {
     ge.on("worm-died", (worm: Character) => this.#refreshHpFill(worm), this);
     ge.on(
       "weapon-changed",
-      (weapon: "bazooka" | "grenade" | "teleporter" | "singularity") =>
-        this.#applyWeaponChange(weapon),
+      (
+        weapon:
+          | "bazooka"
+          | "grenade"
+          | "teleporter"
+          | "singularity"
+          | "gravity-boost",
+      ) => this.#applyWeaponChange(weapon),
+      this,
+    );
+    ge.on(
+      "gravity-changed",
+      ({ mode, remaining }: { mode: string | null; remaining: number }) =>
+        this.#applyGravityChanged(mode, remaining),
       this,
     );
   }
@@ -139,6 +164,7 @@ export class UIScene extends Phaser.Scene {
       game.events.off("hp-changed", undefined, this);
       game.events.off("worm-died", undefined, this);
       game.events.off("weapon-changed", undefined, this);
+      game.events.off("gravity-changed", undefined, this);
     }
     this.#wormRows.clear();
   }
@@ -249,14 +275,30 @@ export class UIScene extends Phaser.Scene {
 
   /** Update the active weapon display. */
   #applyWeaponChange(
-    weapon: "bazooka" | "grenade" | "teleporter" | "singularity",
+    weapon:
+      | "bazooka"
+      | "grenade"
+      | "teleporter"
+      | "singularity"
+      | "gravity-boost",
   ): void {
     const labels: Record<typeof weapon, string> = {
       bazooka: "🚀  Bazooka",
       grenade: "💣  Grenade",
       teleporter: "🌀  Teleporter",
       singularity: "🕳️  Singularity",
+      "gravity-boost": "🪐  Gravity Boost",
     };
     this.#weaponText.setText(labels[weapon]);
+  }
+
+  /** Show or hide the gravity boost status indicator. */
+  #applyGravityChanged(mode: string | null, remaining: number): void {
+    if (!mode || remaining <= 0) {
+      this.#gravityText.setVisible(false);
+      return;
+    }
+    this.#gravityText.setText(`🌀 Gravity: ${mode}  (${remaining}s)`);
+    this.#gravityText.setVisible(true);
   }
 }

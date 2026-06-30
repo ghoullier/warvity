@@ -27,6 +27,7 @@ export class TerrainManager {
   readonly #bitmapOriginX: number;
   readonly #bitmapOriginY: number;
   readonly #renderTexture: Phaser.GameObjects.RenderTexture;
+  readonly #outlineGraphics: Phaser.GameObjects.Graphics;
   readonly #holes: Hole[] = [];
   readonly #scene: Phaser.Scene;
 
@@ -56,6 +57,16 @@ export class TerrainManager {
       CANVAS_SIZE,
     );
     this.#drawInitialTerrain();
+
+    // Static outline overlay drawn above the RenderTexture; stays visible
+    // even after explosions punch holes in the terrain below.
+    this.#outlineGraphics = scene.add.graphics();
+    this.#outlineGraphics.lineStyle(3, 0x5a3e1b, 1);
+    this.#outlineGraphics.strokeCircle(
+      PLANET_CENTER.x,
+      PLANET_CENTER.y,
+      PLANET_RADIUS,
+    );
   }
 
   // ──────────────────────────────── private helpers ────────────────────────────

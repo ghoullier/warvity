@@ -29,6 +29,10 @@ export class Character {
   readonly #color: number;
   readonly #scene: Phaser.Scene;
 
+  get color(): number {
+    return this.#color;
+  }
+
   #hp: number;
   #maxHp: number;
   #alive = true;
@@ -172,6 +176,7 @@ export class Character {
     if (!this.#alive) return;
     this.#hp = Math.max(0, this.#hp - amount);
     this.#drawHpBar();
+    this.#scene.events.emit("hp-changed", this);
     if (this.#hp <= 0) this.#die();
   }
 

@@ -43,6 +43,28 @@ export class GameScene extends Phaser.Scene {
     super({ key: "GameScene" });
   }
 
+  // ──────────────────────────────── public getters ──────────────────────────────
+
+  get teams(): Array<{ name: string; worms: Character[] }> {
+    return this.#teams;
+  }
+
+  get activeWorm(): Character {
+    return this.#turnManager.getCurrentWorm();
+  }
+
+  get activeTeamName(): string {
+    return this.#teams[this.#turnManager.getActiveTeamIndex()]?.name ?? "";
+  }
+
+  get remainingTime(): number {
+    return this.#turnManager.getRemainingTime();
+  }
+
+  get activeWeapon(): "bazooka" | "grenade" {
+    return this.#activeWeapon;
+  }
+
   // ──────────────────────────────── lifecycle ───────────────────────────────────
 
   // Called by Phaser when the scene starts (not declared in the base class type)
@@ -90,6 +112,11 @@ export class GameScene extends Phaser.Scene {
     this.#turnManager = new TurnManager([teamA, teamB]);
     this.#aimingSystem = new AimingSystem(this);
 
+    // Forward timer ticks to scene events for UIScene
+    this.#turnManager.on("timer-tick", (remaining: number) => {
+      this.events.emit("timer-tick", remaining);
+    });
+
     this.#turnManager.on("turn-start", (worm: Character) => {
       console.log(
         `[TurnManager] Turn started — active worm: ${worm.name} (team ${this.#turnManager.getActiveTeamIndex()})`,
@@ -97,6 +124,10 @@ export class GameScene extends Phaser.Scene {
       this.#cameraController.follow(worm);
       this.#aimingSystem.activate(worm);
       this.#turnManager.startTimer(this);
+      // Forward to scene events so UIScene can react
+      const teamName =
+        this.#teams[this.#turnManager.getActiveTeamIndex()]?.name ?? "";
+      this.events.emit("turn-start", worm, teamName);
     });
 
     this.events.on(
@@ -170,11 +201,11 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    // HUD
+    // Controls hint (bottom of screen, rendered in GameScene so it scrolls with world)
     this.add
       .text(
         10,
-        10,
+        CANVAS_SIZE - 26,
         "↑ jump  ← → aim  Space (hold) charge + fire  Tab next turn  Q weapon",
         {
           fontSize: "13px",
@@ -182,6 +213,10 @@ export class GameScene extends Phaser.Scene {
         },
       )
       .setDepth(10);
+
+    // Launch the HUD overlay (restart if already running)
+    this.scene.stop("UIScene");
+    this.scene.launch("UIScene");
   }
 
   override update(_time: number, _delta: number): void {

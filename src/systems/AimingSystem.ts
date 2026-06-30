@@ -8,7 +8,7 @@ const ROTATE_SPEED = (2 * Math.PI) / 180; // 2° per frame in radians
 const POWER_CHARGE_RATE = 0.02; // 0→1 over 50 frames
 const TRAJECTORY_STEPS = 10;
 const TRAJECTORY_SIM_STEPS = 6; // physics ticks between preview dots
-const MAX_FIRE_SPEED = 12;
+const MAX_FIRE_SPEED = 15;
 const FIRE_OFFSET = 40; // px from character centre to projectile spawn
 
 const POWER_BAR_WIDTH = 40;

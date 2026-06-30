@@ -1,24 +1,35 @@
 import Matter from "matter-js";
 import type Phaser from "phaser";
 import { PLANET_CENTER, PLANET_RADIUS } from "../config";
+import type { CameraController } from "../systems/CameraController";
 import type { TerrainManager } from "../systems/TerrainManager";
 
-const PROJECTILE_RADIUS = 5;
-const EXPLOSION_RADIUS = 40;
+const PROJECTILE_RADIUS = 4;
+const FLASH_RADIUS = 22;
+const FLASH_DURATION = 250;
+
+type CollisionHandler = Matter.ICollisionCallback;
 
 /**
- * A projectile that follows radial gravity independently (the GravitySystem
- * in the scene applies gravity to all bodies; this class replicates the same
- * calculation so it can self-destruct when it hits the terrain).
+ * Bazooka projectile with radial gravity.
  *
- * On collision with the terrain it triggers a TerrainManager explosion.
+ * - Circular body (radius 4) launched with the given velocity.
+ * - Radial gravity is applied by the scene's GravitySystem each frame.
+ * - Terrain hit detected via distance-to-center + TerrainManager bitmap.
+ * - Worm hit detected via Matter.js collisionStart event.
+ * - Camera follows the projectile in flight and returns to the active worm
+ *   after explosion.
+ *
+ * Full explosion effects (blast radius, terrain crater, worm damage) land in #13.
  */
 export class Projectile {
   readonly body: MatterJS.BodyType;
   readonly #graphics: Phaser.GameObjects.Graphics;
-  readonly #terrain: TerrainManager;
   readonly #scene: Phaser.Scene;
+  readonly #terrain: TerrainManager;
+  readonly #camera: CameraController;
   #active = true;
+  #collisionHandler: CollisionHandler | null = null;
 
   constructor(
     scene: Phaser.Scene,
@@ -27,9 +38,11 @@ export class Projectile {
     vx: number,
     vy: number,
     terrain: TerrainManager,
+    camera: CameraController,
   ) {
     this.#scene = scene;
     this.#terrain = terrain;
+    this.#camera = camera;
 
     this.body = scene.matter.add.circle(x, y, PROJECTILE_RADIUS, {
       label: "projectile",
@@ -45,6 +58,9 @@ export class Projectile {
     this.#graphics = scene.add.graphics();
     this.#graphics.fillStyle(0xffdd00);
     this.#graphics.fillCircle(0, 0, PROJECTILE_RADIUS);
+
+    this.#camera.followProjectile(this);
+    this.#setupCollisionDetection();
   }
 
   // ──────────────────────────────── public API ─────────────────────────────────
@@ -53,14 +69,12 @@ export class Projectile {
     return this.#active;
   }
 
-  /** Called every frame. Returns false once the projectile has detonated. */
+  /** Called every frame. Syncs the visual and checks for terrain hits. */
   update(): void {
     if (!this.#active) return;
 
     this.#graphics.setPosition(this.body.position.x, this.body.position.y);
 
-    // Terrain hit: check if the projectile centre is inside solid terrain
-    // or within the planet radius (catches tunnelling at high speed)
     const dx = this.body.position.x - PLANET_CENTER.x;
     const dy = this.body.position.y - PLANET_CENTER.y;
     const distSq = dx * dx + dy * dy;
@@ -70,24 +84,73 @@ export class Projectile {
       distSq <= hitRadius * hitRadius ||
       this.#terrain.isTerrainAt(this.body.position.x, this.body.position.y)
     ) {
-      this.#detonate();
+      this.explode();
     }
+  }
+
+  /**
+   * Flash visual + destroy body.
+   * Full explosion effects (terrain crater, worm damage) are implemented in #13.
+   */
+  explode(): void {
+    if (!this.#active) return;
+    this.#active = false;
+
+    this.#tearDownCollisions();
+
+    const { x, y } = this.body.position;
+
+    const flash = this.#scene.add.graphics();
+    flash.fillStyle(0xffffff, 1);
+    flash.fillCircle(x, y, FLASH_RADIUS);
+
+    this.#scene.tweens.add({
+      targets: flash,
+      alpha: 0,
+      duration: FLASH_DURATION,
+      onComplete: () => flash.destroy(),
+    });
+
+    this.#scene.matter.world.remove(this.body, false);
+    this.#graphics.destroy();
+
+    this.#scene.events.emit("projectile-exploded", { x, y });
   }
 
   // ──────────────────────────────── private helpers ────────────────────────────
 
-  #detonate(): void {
-    this.#active = false;
+  #setupCollisionDetection(): void {
+    this.#collisionHandler = (event: Matter.IEventCollision<Matter.Engine>) => {
+      if (!this.#active) return;
 
-    this.#terrain.explode(
-      this.body.position.x,
-      this.body.position.y,
-      EXPLOSION_RADIUS,
+      for (const pair of event.pairs) {
+        const a = pair.bodyA as unknown as MatterJS.BodyType;
+        const b = pair.bodyB as unknown as MatterJS.BodyType;
+
+        if (a === this.body || b === this.body) {
+          const other = a === this.body ? b : a;
+          if (other.label === "character") {
+            this.explode();
+            return;
+          }
+        }
+      }
+    };
+
+    Matter.Events.on(
+      this.#scene.matter.world.engine as unknown as Matter.Engine,
+      "collisionStart",
+      this.#collisionHandler,
     );
+  }
 
-    // Remove physics body from the world
-    this.#scene.matter.world.remove(this.body, false);
-
-    this.#graphics.destroy();
+  #tearDownCollisions(): void {
+    if (!this.#collisionHandler) return;
+    Matter.Events.off(
+      this.#scene.matter.world.engine as unknown as Matter.Engine,
+      "collisionStart",
+      this.#collisionHandler,
+    );
+    this.#collisionHandler = null;
   }
 }

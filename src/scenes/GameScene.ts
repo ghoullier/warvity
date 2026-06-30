@@ -16,6 +16,8 @@ import { TurnManager } from "../systems/TurnManager";
 
 const FIRE_OFFSET = 40; // px from character centre before spawning projectile
 const MAX_FIRE_SPEED = 15;
+const EXPLOSION_RADIUS = 60;
+const MAX_EXPLOSION_DAMAGE = 50;
 
 /**
  * Main game scene.
@@ -152,11 +154,27 @@ export class GameScene extends Phaser.Scene {
       },
     );
 
-    // When the projectile detonates: advance the turn and zoom back to the new worm
-    this.events.on("projectile-exploded", () => {
-      this.#turnManager.nextTurn();
-      this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
-    });
+    // When the projectile detonates: destroy terrain, apply damage, advance turn
+    this.events.on(
+      "projectile-exploded",
+      ({ x, y }: { x: number; y: number }) => {
+        this.#terrain.explode(x, y, EXPLOSION_RADIUS);
+
+        for (const worm of this.#allCharacters) {
+          if (!worm.isAlive()) continue;
+          const dx = worm.body.position.x - x;
+          const dy = worm.body.position.y - y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < EXPLOSION_RADIUS) {
+            const damage = MAX_EXPLOSION_DAMAGE * (1 - dist / EXPLOSION_RADIUS);
+            worm.takeDamage(damage);
+          }
+        }
+
+        this.#turnManager.nextTurn();
+        this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+      },
+    );
 
     // Log the initial worm and activate aiming on it
     const first = this.#turnManager.getCurrentWorm();

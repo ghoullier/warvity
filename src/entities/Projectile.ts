@@ -5,8 +5,8 @@ import type { CameraController } from "../systems/CameraController";
 import type { TerrainManager } from "../systems/TerrainManager";
 
 const PROJECTILE_RADIUS = 4;
-const FLASH_RADIUS = 22;
-const FLASH_DURATION = 250;
+const EXPLOSION_VISUAL_RADIUS = 60;
+const EXPLOSION_DURATION = 450;
 
 type CollisionHandler = Matter.ICollisionCallback;
 
@@ -88,10 +88,7 @@ export class Projectile {
     }
   }
 
-  /**
-   * Flash visual + destroy body.
-   * Full explosion effects (terrain crater, worm damage) are implemented in #13.
-   */
+  /** Explosion visual, camera shake, and event emission. Terrain and damage are handled by GameScene. */
   explode(): void {
     if (!this.#active) return;
     this.#active = false;
@@ -100,15 +97,33 @@ export class Projectile {
 
     const { x, y } = this.body.position;
 
-    const flash = this.#scene.add.graphics();
-    flash.fillStyle(0xffffff, 1);
-    flash.fillCircle(x, y, FLASH_RADIUS);
+    // Camera shake
+    this.#scene.cameras.main.shake(200, 0.01);
+
+    // Outer orange ring
+    const outer = this.#scene.add.graphics();
+    outer.fillStyle(0xff6600, 0.9);
+    outer.fillCircle(0, 0, EXPLOSION_VISUAL_RADIUS);
+    outer.setPosition(x, y);
+    outer.setScale(0.2);
+
+    // Inner yellow core
+    const inner = this.#scene.add.graphics();
+    inner.fillStyle(0xffdd00, 1);
+    inner.fillCircle(0, 0, EXPLOSION_VISUAL_RADIUS * 0.55);
+    inner.setPosition(x, y);
+    inner.setScale(0.2);
 
     this.#scene.tweens.add({
-      targets: flash,
+      targets: [outer, inner],
+      scale: 1.1,
       alpha: 0,
-      duration: FLASH_DURATION,
-      onComplete: () => flash.destroy(),
+      duration: EXPLOSION_DURATION,
+      ease: "Power2",
+      onComplete: () => {
+        outer.destroy();
+        inner.destroy();
+      },
     });
 
     this.#scene.matter.world.remove(this.body, false);

@@ -10,6 +10,7 @@ import { Projectile } from "../entities/Projectile";
 import { CameraController } from "../systems/CameraController";
 import { applyRadialGravity } from "../systems/GravitySystem";
 import { TerrainManager } from "../systems/TerrainManager";
+import { TurnManager } from "../systems/TurnManager";
 
 const FIRE_SPEED = 6;
 const FIRE_OFFSET = 40; // px from character centre before spawning projectile
@@ -21,14 +22,14 @@ const FIRE_OFFSET = 40; // px from character centre before spawning projectile
  *   Arrow Left / Right  — move active character around the planet
  *   Arrow Up            — jump
  *   Space               — fire a projectile outward from the planet surface
- *   Tab                 — switch active character
+ *   Tab                 — end current turn (advance to next worm / team)
  */
 export class GameScene extends Phaser.Scene {
   #terrain!: TerrainManager;
-  #characters: Character[] = [];
+  #turnManager!: TurnManager;
+  #allCharacters: Character[] = [];
   #projectiles: Projectile[] = [];
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
-  #activeIndex = 0;
   #cameraController!: CameraController;
 
   constructor() {
@@ -52,22 +53,42 @@ export class GameScene extends Phaser.Scene {
     // Planet terrain
     this.#terrain = new TerrainManager(this);
 
-    // Two characters on opposite poles
-    this.#characters.push(
+    // Two teams, each with one worm, on opposite poles
+    const teamA = [
       new Character(
         this,
         PLANET_CENTER.x,
         PLANET_CENTER.y - PLANET_RADIUS - 20,
         0xff6b35,
+        100,
+        "Worm A1",
       ),
-    );
-    this.#characters.push(
+    ];
+    const teamB = [
       new Character(
         this,
         PLANET_CENTER.x,
         PLANET_CENTER.y + PLANET_RADIUS + 20,
         0x35aaff,
+        100,
+        "Worm B1",
       ),
+    ];
+
+    this.#allCharacters = [...teamA, ...teamB];
+    this.#turnManager = new TurnManager([teamA, teamB]);
+
+    this.#turnManager.on("turn-start", (worm: Character) => {
+      console.log(
+        `[TurnManager] Turn started — active worm: ${worm.name} (team ${this.#turnManager.getActiveTeamIndex()})`,
+      );
+      this.#cameraController.follow(worm);
+    });
+
+    // Log the initial worm
+    const first = this.#turnManager.getCurrentWorm();
+    console.log(
+      `[TurnManager] Game start — active worm: ${first.name} (team ${this.#turnManager.getActiveTeamIndex()})`,
     );
 
     // Keyboard input
@@ -79,9 +100,7 @@ export class GameScene extends Phaser.Scene {
 
     this.input.keyboard?.on("keydown-TAB", (event: KeyboardEvent) => {
       event.preventDefault();
-      this.#activeIndex = (this.#activeIndex + 1) % this.#characters.length;
-      const newActive = this.#characters[this.#activeIndex];
-      if (newActive) this.#cameraController.follow(newActive);
+      this.#turnManager.nextTurn();
     });
 
     // Camera
@@ -89,31 +108,25 @@ export class GameScene extends Phaser.Scene {
       this.cameras.main,
       PLANET_CENTER,
     );
-    const firstChar = this.#characters[0];
-    if (firstChar) this.#cameraController.follow(firstChar);
+    this.#cameraController.follow(this.#turnManager.getCurrentWorm());
 
     // Worm death events
-    this.events.on("worm-died", (character: Character) => {
-      const index = this.#characters.indexOf(character);
-      console.log(`Worm ${index} died!`);
+    this.events.on("worm-died", (worm: Character) => {
+      console.log(
+        `[TurnManager] ${worm.name} (team ${this.#turnManager.getActiveTeamIndex()}) died!`,
+      );
 
-      // Remove dead worm from active rotation
-      if (this.#activeIndex >= this.#characters.length - 1) {
-        this.#activeIndex = 0;
-      }
-
-      const surviving = this.#characters.filter((c) => c.isAlive());
+      const surviving = this.#allCharacters.filter((c) => c.isAlive());
       if (surviving.length === 0) {
         console.log("All worms are dead — draw!");
       } else if (surviving.length === 1) {
-        const winnerId = this.#characters.indexOf(surviving[0]);
-        console.log(`Worm ${winnerId} wins!`);
+        console.log(`${surviving[0].name} wins!`);
       }
     });
 
     // HUD
     this.add
-      .text(10, 10, "← → move  ↑ jump  Space fire  Tab switch", {
+      .text(10, 10, "← → move  ↑ jump  Space fire  Tab next turn", {
         fontSize: "13px",
         color: "#aaaacc",
       })
@@ -125,16 +138,16 @@ export class GameScene extends Phaser.Scene {
     const bodies = this.matter.world.getAllBodies();
     applyRadialGravity(bodies, PLANET_CENTER, GRAVITY_STRENGTH);
 
-    // Character controls
-    const active = this.#characters[this.#activeIndex];
+    // Character controls — only the active worm responds
+    const active = this.#turnManager.getCurrentWorm();
     if (active?.isAlive() && this.#cursors) {
       if (this.#cursors.left.isDown) active.moveLeft();
       else if (this.#cursors.right.isDown) active.moveRight();
       if (Phaser.Input.Keyboard.JustDown(this.#cursors.up)) active.jump();
     }
 
-    // Sync visuals for all characters
-    for (const c of this.#characters) c.update();
+    // Sync visuals for all characters across all teams
+    for (const worm of this.#allCharacters) worm.update();
 
     // Update projectiles and discard detonated ones
     for (const p of this.#projectiles) p.update();
@@ -144,8 +157,7 @@ export class GameScene extends Phaser.Scene {
   // ──────────────────────────────── private helpers ─────────────────────────────
 
   #fireProjectile(): void {
-    const character = this.#characters[this.#activeIndex];
-    if (!character) return;
+    const character = this.#turnManager.getCurrentWorm();
 
     // Direction: outward from planet centre through the character
     const cx = character.body.position.x;

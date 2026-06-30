@@ -92,6 +92,7 @@ export class GameScene extends Phaser.Scene {
       );
       this.#cameraController.follow(worm);
       this.#aimingSystem.activate(worm);
+      this.#turnManager.startTimer(this);
     });
 
     this.events.on(
@@ -133,8 +134,9 @@ export class GameScene extends Phaser.Scene {
     );
     this.#cameraController.follow(this.#turnManager.getCurrentWorm());
 
-    // Activate aiming on the first worm
+    // Activate aiming on the first worm and start the first turn's timer
     this.#aimingSystem.activate(first);
+    this.#turnManager.startTimer(this);
 
     // Worm death events
     this.events.on("worm-died", (_worm: Character) => {

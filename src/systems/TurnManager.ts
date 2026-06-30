@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import type { Character } from "../entities/Character";
 
+const TURN_DURATION_SECONDS = 30;
+
 /**
  * Manages turn-based alternation between teams and their worms.
  *
@@ -13,19 +15,23 @@ import type { Character } from "../entities/Character";
  * Events emitted:
  *   'turn-start'  — payload: the newly active Character
  *   'turn-end'    — no payload
+ *   'timer-tick'  — payload: remaining seconds (integer)
  */
 export class TurnManager extends Phaser.Events.EventEmitter {
   readonly #teams: Character[][];
   readonly #teamWormIndices: number[];
   #currentTeamIndex: number;
   #stopped = false;
+  #timerEvent: Phaser.Time.TimerEvent | null = null;
+  #remainingSeconds: number = TURN_DURATION_SECONDS;
 
   get currentTeamIndex(): number {
     return this.#currentTeamIndex;
   }
 
   get currentWormIndex(): number {
-    return this.#teamWormIndices[this.#currentTeamIndex];
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return this.#teamWormIndices[this.#currentTeamIndex]!;
   }
 
   constructor(teams: Character[][]) {
@@ -47,14 +53,47 @@ export class TurnManager extends Phaser.Events.EventEmitter {
 
   /** Returns the worm whose turn it currently is. */
   getCurrentWorm(): Character {
-    return this.#teams[this.#currentTeamIndex][
-      this.#teamWormIndices[this.#currentTeamIndex]
-    ];
+    // Constructor validates both arrays are non-empty and indices stay in-bounds.
+    // biome-ignore lint/style/noNonNullAssertion: invariant enforced by constructor
+    return this.#teams[this.#currentTeamIndex]![
+      this.#teamWormIndices[this.#currentTeamIndex]!
+    ]!;
   }
 
   /** Returns the index of the team currently taking their turn. */
   getActiveTeamIndex(): number {
     return this.#currentTeamIndex;
+  }
+
+  /** Starts (or restarts) the countdown timer for the current turn. */
+  startTimer(scene: Phaser.Scene): void {
+    this.stopTimer();
+    this.#remainingSeconds = TURN_DURATION_SECONDS;
+
+    this.#timerEvent = scene.time.addEvent({
+      delay: 1000,
+      repeat: TURN_DURATION_SECONDS - 1,
+      callback: () => {
+        this.#remainingSeconds -= 1;
+        this.emit("timer-tick", this.#remainingSeconds);
+        if (this.#remainingSeconds <= 0) {
+          this.nextTurn();
+        }
+      },
+    });
+  }
+
+  /** Stops the countdown timer (e.g. when the player fires). */
+  stopTimer(): void {
+    if (this.#timerEvent) {
+      this.#timerEvent.remove(false);
+      this.#timerEvent = null;
+    }
+  }
+
+  /** Returns the remaining turn time in whole seconds. */
+  getRemainingTime(): number {
+    return this.#remainingSeconds;
   }
 
   /**
@@ -65,18 +104,22 @@ export class TurnManager extends Phaser.Events.EventEmitter {
    */
   /** Halts the turn cycle — nextTurn() becomes a no-op after this. */
   stop(): void {
+    this.stopTimer();
     this.#stopped = true;
   }
 
   nextTurn(): void {
     if (this.#stopped) return;
+    this.stopTimer();
     this.emit("turn-end");
     this.#deactivateCurrentWorm();
 
     // Advance this team's worm pointer for when they play again
-    const team = this.#teams[this.#currentTeamIndex];
+    // biome-ignore lint/style/noNonNullAssertion: invariant enforced by constructor
+    const team = this.#teams[this.#currentTeamIndex]!;
+    // biome-ignore lint/style/noNonNullAssertion: invariant enforced by constructor
     this.#teamWormIndices[this.#currentTeamIndex] =
-      (this.#teamWormIndices[this.#currentTeamIndex] + 1) % team.length;
+      (this.#teamWormIndices[this.#currentTeamIndex]! + 1) % team.length;
 
     // Move to the next team
     this.#currentTeamIndex = (this.#currentTeamIndex + 1) % this.#teams.length;

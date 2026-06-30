@@ -15,7 +15,7 @@ import { TerrainManager } from "../systems/TerrainManager";
 import { TurnManager } from "../systems/TurnManager";
 
 const FIRE_OFFSET = 40; // px from character centre before spawning projectile
-const MAX_FIRE_SPEED = 12;
+const MAX_FIRE_SPEED = 15;
 
 /**
  * Main game scene.
@@ -143,13 +143,20 @@ export class GameScene extends Phaser.Scene {
       }) => {
         if (this.#activeWeapon === "grenade") {
           this.#fireGrenade(angle, power, worm);
+          // Grenade: advance turn immediately (detonation-based advance is a future feature)
+          this.#turnManager.nextTurn();
         } else {
           this.#fireProjectile(angle, power, worm);
+          // Bazooka: turn advances once the projectile explodes (see 'projectile-exploded')
         }
-        // Advance the turn automatically after firing
-        this.#turnManager.nextTurn();
       },
     );
+
+    // When the projectile detonates: advance the turn and zoom back to the new worm
+    this.events.on("projectile-exploded", () => {
+      this.#turnManager.nextTurn();
+      this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+    });
 
     // Log the initial worm and activate aiming on it
     const first = this.#turnManager.getCurrentWorm();
@@ -260,6 +267,7 @@ export class GameScene extends Phaser.Scene {
         Math.cos(angle) * speed,
         Math.sin(angle) * speed,
         this.#terrain,
+        this.#cameraController,
       ),
     );
   }

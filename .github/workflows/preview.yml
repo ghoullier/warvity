@@ -9,8 +9,8 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: preview-${{ github.ref }}
-  cancel-in-progress: true
+  group: pages-publish
+  cancel-in-progress: false
 
 jobs:
   deploy-preview:

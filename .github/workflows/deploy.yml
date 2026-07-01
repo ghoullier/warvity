@@ -8,8 +8,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: deploy-main
-  cancel-in-progress: true
+  group: pages-publish
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -26,4 +26,5 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+          destination_dir: app
           keep_files: true  # garde le dossier pr-preview/ existant

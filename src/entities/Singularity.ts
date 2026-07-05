@@ -1,6 +1,7 @@
 import Matter from "matter-js";
 import type Phaser from "phaser";
 import { PLANET_CENTER, PLANET_RADIUS } from "../config";
+import { toMatterBody } from "../utils/matterUtils";
 
 const SINGULARITY_RADIUS = 8;
 const RING_RADIUS = 14;
@@ -54,7 +55,7 @@ export class Singularity {
       restitution: 0,
     });
 
-    Matter.Body.setVelocity(this.body as unknown as Matter.Body, {
+    Matter.Body.setVelocity(toMatterBody(this.body), {
       x: vx,
       y: vy,
     });
@@ -142,7 +143,7 @@ export class Singularity {
     this.#flightTimer?.remove(false);
     this.#flightTimer = null;
 
-    Matter.Body.setStatic(this.body as unknown as Matter.Body, true);
+    Matter.Body.setStatic(toMatterBody(this.body), true);
 
     // Spin the segmented ring so the rotation is clearly visible
     this.#tweens.push(
@@ -188,7 +189,7 @@ export class Singularity {
       const dist = Math.sqrt(distSq);
       const force = ATTRACTION_FORCE * (body.mass ?? 1);
       Matter.Body.applyForce(
-        body as unknown as Matter.Body,
+        toMatterBody(body),
         body.position as unknown as Matter.Vector,
         { x: (dx / dist) * force, y: (dy / dist) * force },
       );

@@ -1,4 +1,5 @@
 import Matter from "matter-js";
+import { toMatterBody } from "../utils/matterUtils";
 
 /**
  * Applies radial gravity toward the planet center on every dynamic body.
@@ -25,7 +26,7 @@ export function applyRadialGravity(
     const forceMag = G * mass * multiplier;
 
     // Equivalent to Matter.Body.applyForce at centre of mass (no torque)
-    Matter.Body.applyForce(body as unknown as Matter.Body, body.position, {
+    Matter.Body.applyForce(toMatterBody(body), body.position, {
       x: (dx / dist) * forceMag,
       y: (dy / dist) * forceMag,
     });

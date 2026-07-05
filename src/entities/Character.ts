@@ -1,6 +1,7 @@
 import Matter from "matter-js";
 import type Phaser from "phaser";
 import { PLANET_CENTER } from "../config";
+import { toMatterBody } from "../utils/matterUtils";
 
 const CHAR_WIDTH = 18;
 const CHAR_HEIGHT = 26;
@@ -63,10 +64,7 @@ export class Character {
     });
 
     // Prevent the physics engine from rotating the body independently
-    Matter.Body.setInertia(
-      this.body as unknown as Matter.Body,
-      Number.POSITIVE_INFINITY,
-    );
+    Matter.Body.setInertia(toMatterBody(this.body), Number.POSITIVE_INFINITY);
 
     this.#graphics = scene.add.graphics();
     this.#hpBar = scene.add.graphics();
@@ -253,10 +251,7 @@ export class Character {
     const theta = this.#radialAngle();
 
     // Keep body upright relative to the planet surface
-    Matter.Body.setAngle(
-      this.body as unknown as Matter.Body,
-      theta + Math.PI / 2,
-    );
+    Matter.Body.setAngle(toMatterBody(this.body), theta + Math.PI / 2);
 
     this.#graphics.setPosition(this.body.position.x, this.body.position.y);
     this.#graphics.setRotation(theta + Math.PI / 2);
@@ -277,30 +272,27 @@ export class Character {
   /** Move counterclockwise around the planet. */
   moveLeft(): void {
     const theta = this.#radialAngle();
-    Matter.Body.applyForce(
-      this.body as unknown as Matter.Body,
-      this.body.position,
-      { x: -Math.sin(theta) * MOVE_FORCE, y: Math.cos(theta) * MOVE_FORCE },
-    );
+    Matter.Body.applyForce(toMatterBody(this.body), this.body.position, {
+      x: -Math.sin(theta) * MOVE_FORCE,
+      y: Math.cos(theta) * MOVE_FORCE,
+    });
   }
 
   /** Move clockwise around the planet. */
   moveRight(): void {
     const theta = this.#radialAngle();
-    Matter.Body.applyForce(
-      this.body as unknown as Matter.Body,
-      this.body.position,
-      { x: Math.sin(theta) * MOVE_FORCE, y: -Math.cos(theta) * MOVE_FORCE },
-    );
+    Matter.Body.applyForce(toMatterBody(this.body), this.body.position, {
+      x: Math.sin(theta) * MOVE_FORCE,
+      y: -Math.cos(theta) * MOVE_FORCE,
+    });
   }
 
   /** Apply an outward radial impulse (jump away from planet surface). */
   jump(): void {
     const theta = this.#radialAngle();
-    Matter.Body.applyForce(
-      this.body as unknown as Matter.Body,
-      this.body.position,
-      { x: Math.cos(theta) * JUMP_FORCE, y: Math.sin(theta) * JUMP_FORCE },
-    );
+    Matter.Body.applyForce(toMatterBody(this.body), this.body.position, {
+      x: Math.cos(theta) * JUMP_FORCE,
+      y: Math.sin(theta) * JUMP_FORCE,
+    });
   }
 }

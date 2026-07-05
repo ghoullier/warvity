@@ -2,6 +2,7 @@ import Matter from "matter-js";
 import Phaser from "phaser";
 import { PLANET_CENTER, PLANET_RADIUS } from "../config";
 import type { TerrainManager } from "../systems/TerrainManager";
+import { toMatterBody } from "../utils/matterUtils";
 import type { Character } from "./Character";
 
 const CURSOR_OUTER_RADIUS = 18;
@@ -178,11 +179,11 @@ export class Teleporter {
 
     // Flash at source, then move worm, then flash at destination
     this.#flashAt(srcX, srcY, () => {
-      Matter.Body.setPosition(worm.body as unknown as Matter.Body, {
+      Matter.Body.setPosition(toMatterBody(worm.body), {
         x: destX,
         y: destY,
       });
-      Matter.Body.setVelocity(worm.body as unknown as Matter.Body, {
+      Matter.Body.setVelocity(toMatterBody(worm.body), {
         x: 0,
         y: 0,
       });

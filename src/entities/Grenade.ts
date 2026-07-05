@@ -1,5 +1,6 @@
 import Matter from "matter-js";
 import type Phaser from "phaser";
+import { toMatterBody } from "../utils/matterUtils";
 
 const GRENADE_RADIUS = 5;
 const MAX_BOUNCES = 3;
@@ -43,7 +44,7 @@ export class Grenade {
       restitution: 0.6,
     });
 
-    Matter.Body.setVelocity(this.body as unknown as Matter.Body, {
+    Matter.Body.setVelocity(toMatterBody(this.body), {
       x: vx,
       y: vy,
     });
@@ -88,7 +89,7 @@ export class Grenade {
           this.#bounceCount++;
 
           if (this.#bounceCount >= MAX_BOUNCES) {
-            Matter.Body.set(this.body as unknown as Matter.Body, {
+            Matter.Body.set(toMatterBody(this.body), {
               restitution: 0,
               friction: 1,
               frictionAir: 0.3,

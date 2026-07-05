@@ -1,6 +1,7 @@
 import Matter from "matter-js";
 import type Phaser from "phaser";
 import { PLANET_CENTER } from "../config";
+import { toMatterBody } from "../utils/matterUtils";
 
 const CLUSTER_RADIUS = 10;
 const SUB_RADIUS = 7;
@@ -54,7 +55,7 @@ export class ClusterBomb {
       restitution: 0.4,
     });
 
-    Matter.Body.setVelocity(this.body as unknown as Matter.Body, {
+    Matter.Body.setVelocity(toMatterBody(this.body), {
       x: vx,
       y: vy,
     });
@@ -167,7 +168,7 @@ export class ClusterBomb {
         frictionAir: 0.01,
         restitution: 0.3,
       });
-      Matter.Body.setVelocity(subBody as unknown as Matter.Body, {
+      Matter.Body.setVelocity(toMatterBody(subBody), {
         x: Math.cos(angle) * speed,
         y: Math.sin(angle) * speed,
       });

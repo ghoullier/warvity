@@ -3,6 +3,7 @@ import type { Character } from "../entities/Character";
 import type { AudioManager } from "../systems/AudioManager";
 import type { CameraController } from "../systems/CameraController";
 import type { TerrainManager } from "../systems/TerrainManager";
+import { DEFAULT_FIRE_SPEED } from "./constants";
 
 /**
  * All the game-state a weapon implementation needs to do its job.
@@ -41,6 +42,11 @@ export interface WeaponDefinition {
    * - `'space'`   — fires on bare Space-key press, no charge (e.g. Shield).
    */
   readonly inputMode?: "aim" | "pointer" | "space";
+  /**
+   * Launch speed used by AimingSystem's trajectory preview (pixels per frame
+   * at full power). Defaults to DEFAULT_FIRE_SPEED when omitted.
+   */
+  readonly trajectorySpeed?: number;
   /** Called when the player fires. Returns true if the weapon ends the turn asynchronously. */
   fire(ctx: WeaponContext): boolean;
   /** Called every frame for all registered weapons (handles in-flight entities & mines). */
@@ -81,3 +87,28 @@ export function setupWeaponListeners(
 export function resetAllWeapons(): void {
   for (const w of WEAPONS) w.onReset?.();
 }
+
+/**
+ * Apply radial blast damage to all living worms within `radius` pixels of
+ * (x, y). Damage falls off linearly from `maxDamage` at the centre to 0 at
+ * the edge. Extracted from the 5 weapon files that shared identical loops.
+ */
+export function applyBlastDamage(
+  allWorms: Character[],
+  x: number,
+  y: number,
+  radius: number,
+  maxDamage: number,
+): void {
+  for (const w of allWorms) {
+    if (!w.isAlive()) continue;
+    const dx = w.body.position.x - x;
+    const dy = w.body.position.y - y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < radius) {
+      w.takeDamage(maxDamage * (1 - dist / radius));
+    }
+  }
+}
+
+export { DEFAULT_FIRE_SPEED };

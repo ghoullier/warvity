@@ -1,4 +1,5 @@
 import type Phaser from "phaser";
+import { EVENTS } from "../events/GameEvents";
 
 export type GravityMode = "2x" | "0.5x" | "reverse";
 
@@ -63,7 +64,7 @@ export class GravityBoost {
     GravityBoost.#modeIndex = (GravityBoost.#modeIndex + 1) % MODES.length;
 
     this.#onMultiplierChange(multiplierForMode(mode));
-    this.#scene.events.emit("gravity-changed", {
+    this.#scene.events.emit(EVENTS.GRAVITY_CHANGED, {
       mode,
       remaining: this.#remaining,
     });
@@ -76,13 +77,13 @@ export class GravityBoost {
         if (this.#remaining <= 0) {
           this.#active = false;
           this.#onMultiplierChange(1);
-          this.#scene.events.emit("gravity-changed", {
+          this.#scene.events.emit(EVENTS.GRAVITY_CHANGED, {
             mode: null as unknown as GravityMode,
             remaining: 0,
           });
           this.#onEnd();
         } else {
-          this.#scene.events.emit("gravity-changed", {
+          this.#scene.events.emit(EVENTS.GRAVITY_CHANGED, {
             mode,
             remaining: this.#remaining,
           });

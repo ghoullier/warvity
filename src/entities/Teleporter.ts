@@ -1,6 +1,7 @@
 import Matter from "matter-js";
 import Phaser from "phaser";
 import { PLANET_CENTER, PLANET_RADIUS } from "../config";
+import { EVENTS } from "../events/GameEvents";
 import type { TerrainManager } from "../systems/TerrainManager";
 import type { Character } from "./Character";
 
@@ -188,7 +189,7 @@ export class Teleporter {
       });
 
       this.#flashAt(destX, destY, () => {
-        this.#scene.events.emit("teleport-complete");
+        this.#scene.events.emit(EVENTS.TELEPORT_COMPLETE);
       });
     });
   }

@@ -8,6 +8,7 @@ import {
 import { DEFAULT_PLANET_STYLE, type PlanetStyle } from "../config/PlanetStyles";
 import { Character } from "../entities/Character";
 import { Teleporter } from "../entities/Teleporter";
+import { EVENTS } from "../events/GameEvents";
 import { AimingSystem } from "../systems/AimingSystem";
 import { AudioManager } from "../systems/AudioManager";
 import { CameraController } from "../systems/CameraController";
@@ -22,6 +23,7 @@ import {
   setupWeaponListeners,
   type WeaponContext,
 } from "../weapons/WeaponRegistry";
+import { SCENE_KEYS } from "./SceneKeys";
 
 const TEAM_COLORS = [0xff6b35, 0x35aaff, 0x35ff6b, 0xff35aa] as const;
 const TEAM_NAMES = ["Team A", "Team B", "Team C", "Team D"] as const;
@@ -55,7 +57,7 @@ export class GameScene extends Phaser.Scene {
   #planetStyle: PlanetStyle = DEFAULT_PLANET_STYLE;
 
   constructor() {
-    super({ key: "GameScene" });
+    super({ key: SCENE_KEYS.GAME });
   }
 
   // ──────────────────────────────── init ────────────────────────────────────────
@@ -88,7 +90,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   get activeTeamName(): string {
-    return this.#teams[this.#turnManager.getActiveTeamIndex()]?.name ?? "";
+    return this.#turnManager.getActiveTeamName();
   }
 
   get remainingTime(): number {
@@ -143,33 +145,28 @@ export class GameScene extends Phaser.Scene {
       this.#teams.push({ name: TEAM_NAMES[t] ?? `Team ${t + 1}`, worms });
       this.#allCharacters.push(...worms);
     }
-    this.#turnManager = new TurnManager(this.#teams.map((team) => team.worms));
+
+    // TurnManager emits EVENTS.TURN_START / EVENTS.TIMER_TICK directly on
+    // this.events — no relay handlers needed.
+    this.#turnManager = new TurnManager(this.#teams, this.events);
     this.#aimingSystem = new AimingSystem(this);
     this.#teleporter = new Teleporter(this, this.#terrain);
 
-    // Forward timer ticks to scene events for UIScene
-    this.#turnManager.on("timer-tick", (remaining: number) => {
-      this.events.emit("timer-tick", remaining);
-    });
-
-    this.#turnManager.on("turn-start", (worm: Character) => {
+    // ── React to turn-start events emitted by TurnManager ──────────────────
+    this.events.on(EVENTS.TURN_START, (worm: Character, teamName: string) => {
       console.log(
-        `[TurnManager] Turn started — active worm: ${worm.name} (team ${this.#turnManager.getActiveTeamIndex()})`,
+        `[TurnManager] Turn started — active worm: ${worm.name} (team ${teamName})`,
       );
       worm.clearShield();
       this.#audioManager.playTeleport();
       this.#cameraController.follow(worm);
       this.#activateCurrentWeapon(worm);
       this.#turnManager.startTimer(this);
-      // Forward to scene events so UIScene can react
-      const teamName =
-        this.#teams[this.#turnManager.getActiveTeamIndex()]?.name ?? "";
-      this.events.emit("turn-start", worm, teamName);
     });
 
     // AimingSystem fire event → dispatch to the active weapon
     this.events.on(
-      "fire",
+      EVENTS.FIRE,
       ({
         angle,
         power,
@@ -186,7 +183,7 @@ export class GameScene extends Phaser.Scene {
     );
 
     // When a teleport completes: advance the turn
-    this.events.on("teleport-complete", () => {
+    this.events.on(EVENTS.TELEPORT_COMPLETE, () => {
       this.#turnManager.nextTurn();
       this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
     });
@@ -216,7 +213,7 @@ export class GameScene extends Phaser.Scene {
       const ids = weapons.map((w) => w.id);
       const idx = ids.indexOf(this.#activeWeapon);
       this.#activeWeapon = ids[(idx + 1) % ids.length] ?? "bazooka";
-      this.events.emit("weapon-changed", this.#activeWeapon);
+      this.events.emit(EVENTS.WEAPON_CHANGED, this.#activeWeapon);
       this.#activateCurrentWeapon(this.#turnManager.getCurrentWorm());
     });
 
@@ -248,11 +245,11 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Worm death events
-    this.events.on("shield-blocked", () => {
+    this.events.on(EVENTS.SHIELD_BLOCKED, () => {
       this.#audioManager.playShieldBlock();
     });
 
-    this.events.on("worm-died", (_worm: Character) => {
+    this.events.on(EVENTS.WORM_DIED, (_worm: Character) => {
       this.#audioManager.playDeath();
       for (const team of this.#teams) {
         if (team.worms.every((c) => !c.isAlive())) {
@@ -262,9 +259,9 @@ export class GameScene extends Phaser.Scene {
           resetAllWeapons();
           this.#turnManager.stop();
           if (winner) {
-            this.scene.launch("GameOver", { winner: winner.name });
+            this.scene.launch(SCENE_KEYS.GAME_OVER, { winner: winner.name });
           } else {
-            this.scene.launch("GameOver", { winner: "Nobody" });
+            this.scene.launch(SCENE_KEYS.GAME_OVER, { winner: "Nobody" });
           }
           return;
         }
@@ -285,8 +282,8 @@ export class GameScene extends Phaser.Scene {
       .setDepth(10);
 
     // Launch the HUD overlay (restart if already running)
-    this.scene.stop("UIScene");
-    this.scene.launch("UIScene");
+    this.scene.stop(SCENE_KEYS.UI);
+    this.scene.launch(SCENE_KEYS.UI);
   }
 
   override update(_time: number, delta: number): void {
@@ -368,14 +365,15 @@ export class GameScene extends Phaser.Scene {
 
   /** Activate input and visuals for the current weapon on `worm`. */
   #activateCurrentWeapon(worm: Character): void {
-    const inputMode = getWeapon(this.#activeWeapon)?.inputMode ?? "aim";
+    const def = getWeapon(this.#activeWeapon);
+    const inputMode = def?.inputMode ?? "aim";
     if (inputMode === "pointer") {
       this.#aimingSystem.deactivate();
       this.#teleporter.activate(worm);
     } else {
       this.#teleporter.deactivate();
       if (inputMode === "aim") {
-        this.#aimingSystem.activate(worm);
+        this.#aimingSystem.activate(worm, def?.trajectorySpeed);
       } else {
         this.#aimingSystem.deactivate();
       }

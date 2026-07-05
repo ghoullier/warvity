@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { GRAVITY_STRENGTH, PLANET_CENTER } from "../config";
 import type { Character } from "../entities/Character";
+import { DEFAULT_FIRE_SPEED, FIRE_OFFSET } from "../weapons/constants";
 
 const ARROW_LENGTH = 55;
 const ARROW_HEAD_SIZE = 10;
@@ -8,8 +9,6 @@ const ROTATE_SPEED = (2 * Math.PI) / 180; // 2° per frame in radians
 const POWER_CHARGE_RATE = 0.02; // 0→1 over 50 frames
 const TRAJECTORY_STEPS = 10;
 const TRAJECTORY_SIM_STEPS = 6; // physics ticks between preview dots
-const MAX_FIRE_SPEED = 15;
-const FIRE_OFFSET = 40; // px from character centre to projectile spawn
 
 const POWER_BAR_WIDTH = 40;
 const POWER_BAR_HEIGHT = 6;
@@ -33,6 +32,7 @@ export class AimingSystem {
 
   #worm: Character | null = null;
   #active = false;
+  #trajectorySpeed = DEFAULT_FIRE_SPEED;
 
   /** Offset from the radial-outward direction (radians). 0 = straight up. */
   #aimOffset = 0;
@@ -55,12 +55,13 @@ export class AimingSystem {
   // ──────────────────────────────── public API ─────────────────────────────────
 
   /** Bind the aiming system to `worm` and show the UI. */
-  activate(worm: Character): void {
+  activate(worm: Character, trajectorySpeed?: number): void {
     this.#worm = worm;
     this.#aimOffset = 0;
     this.#power = 0;
     this.#charging = false;
     this.#active = true;
+    this.#trajectorySpeed = trajectorySpeed ?? DEFAULT_FIRE_SPEED;
 
     this.#keyLeft =
       this.#scene.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT) ??
@@ -224,7 +225,7 @@ export class AimingSystem {
     this.#trajectoryGfx.clear();
 
     // Compute initial velocity for preview
-    const speed = this.#power * MAX_FIRE_SPEED;
+    const speed = this.#power * this.#trajectorySpeed;
     let px = wx + Math.cos(worldAngle) * FIRE_OFFSET;
     let py = wy + Math.sin(worldAngle) * FIRE_OFFSET;
     let vx = Math.cos(worldAngle) * speed;

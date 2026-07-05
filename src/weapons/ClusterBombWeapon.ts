@@ -5,10 +5,14 @@ import {
   MAX_SUB_DAMAGE,
   SUB_EXPLOSION_RADIUS,
 } from "../entities/ClusterBomb";
+import { EVENTS } from "../events/GameEvents";
 import * as ParticleSystem from "../systems/ParticleSystem";
-import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
-
-const FIRE_OFFSET = 40;
+import { FIRE_OFFSET } from "./constants";
+import {
+  applyBlastDamage,
+  registerWeapon,
+  type WeaponContext,
+} from "./WeaponRegistry";
 
 const clusterBombs: ClusterBomb[] = [];
 
@@ -32,7 +36,7 @@ registerWeapon({
       ),
     );
 
-    scene.events.on("cluster-split", () => {
+    scene.events.on(EVENTS.CLUSTER_SPLIT, () => {
       audioManager.playClusterSplit();
     });
 
@@ -40,22 +44,14 @@ registerWeapon({
       audioManager.playSubExplosion();
       terrain.explode(x, y, SUB_EXPLOSION_RADIUS);
       ParticleSystem.explode(scene, x, y, PLANET_CENTER);
-      for (const w of allWorms) {
-        if (!w.isAlive()) continue;
-        const dx = w.body.position.x - x;
-        const dy = w.body.position.y - y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < SUB_EXPLOSION_RADIUS) {
-          w.takeDamage(MAX_SUB_DAMAGE * (1 - dist / SUB_EXPLOSION_RADIUS));
-        }
-      }
+      applyBlastDamage(allWorms, x, y, SUB_EXPLOSION_RADIUS, MAX_SUB_DAMAGE);
     };
 
-    scene.events.on("sub-munition-exploded", onSubExploded);
+    scene.events.on(EVENTS.SUB_MUNITION_EXPLODED, onSubExploded);
 
-    scene.events.once("cluster-exploded", () => {
-      scene.events.off("sub-munition-exploded", onSubExploded);
-      scene.events.off("cluster-split");
+    scene.events.once(EVENTS.CLUSTER_EXPLODED, () => {
+      scene.events.off(EVENTS.SUB_MUNITION_EXPLODED, onSubExploded);
+      scene.events.off(EVENTS.CLUSTER_SPLIT);
       ctx.nextTurn();
     });
 

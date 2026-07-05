@@ -1,7 +1,12 @@
 import { PLANET_CENTER } from "../config";
 import { LandMine } from "../entities/LandMine";
+import { EVENTS } from "../events/GameEvents";
 import * as ParticleSystem from "../systems/ParticleSystem";
-import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
+import {
+  applyBlastDamage,
+  registerWeapon,
+  type WeaponContext,
+} from "./WeaponRegistry";
 
 const MINE_EXPLOSION_RADIUS = 60;
 const MINE_EXPLOSION_DAMAGE = 50;
@@ -35,29 +40,28 @@ registerWeapon({
    * the handler must remain active for the lifetime of the scene.
    */
   onSceneCreate(scene, buildCtx): void {
-    scene.events.on("mine-beep", () => {
+    scene.events.on(EVENTS.MINE_BEEP, () => {
       buildCtx().audioManager.playMineBeep();
     });
 
-    scene.events.on("mine-exploded", ({ x, y }: { x: number; y: number }) => {
-      const ctx = buildCtx();
-      ctx.audioManager.playMineExplosion();
-      ctx.terrain.explode(x, y, MINE_EXPLOSION_RADIUS);
-      ParticleSystem.explode(scene, x, y, PLANET_CENTER);
-      ParticleSystem.debris(scene, x, y, PLANET_CENTER);
-      for (const w of ctx.allWorms) {
-        if (!w.isAlive()) continue;
-        const dx = w.body.position.x - x;
-        const dy = w.body.position.y - y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < MINE_EXPLOSION_RADIUS) {
-          w.takeDamage(
-            MINE_EXPLOSION_DAMAGE * (1 - dist / MINE_EXPLOSION_RADIUS),
-          );
-        }
-      }
-      ctx.nextTurn();
-    });
+    scene.events.on(
+      EVENTS.MINE_EXPLODED,
+      ({ x, y }: { x: number; y: number }) => {
+        const ctx = buildCtx();
+        ctx.audioManager.playMineExplosion();
+        ctx.terrain.explode(x, y, MINE_EXPLOSION_RADIUS);
+        ParticleSystem.explode(scene, x, y, PLANET_CENTER);
+        ParticleSystem.debris(scene, x, y, PLANET_CENTER);
+        applyBlastDamage(
+          ctx.allWorms,
+          x,
+          y,
+          MINE_EXPLOSION_RADIUS,
+          MINE_EXPLOSION_DAMAGE,
+        );
+        ctx.nextTurn();
+      },
+    );
   },
 
   onReset(): void {

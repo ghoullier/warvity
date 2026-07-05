@@ -1,6 +1,7 @@
 import Matter from "matter-js";
 import type Phaser from "phaser";
 import { PLANET_CENTER, PLANET_RADIUS } from "../config";
+import { EVENTS } from "../events/GameEvents";
 import type { CameraController } from "../systems/CameraController";
 import type { TerrainManager } from "../systems/TerrainManager";
 
@@ -129,7 +130,7 @@ export class Projectile {
     this.#scene.matter.world.remove(this.body, false);
     this.#graphics.destroy();
 
-    this.#scene.events.emit("projectile-exploded", { x, y });
+    this.#scene.events.emit(EVENTS.PROJECTILE_EXPLODED, { x, y });
   }
 
   // ──────────────────────────────── private helpers ────────────────────────────

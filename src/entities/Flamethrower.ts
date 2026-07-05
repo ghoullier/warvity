@@ -1,5 +1,6 @@
 import type Phaser from "phaser";
 import { GRAVITY_STRENGTH, PLANET_CENTER, PLANET_RADIUS } from "../config";
+import { EVENTS } from "../events/GameEvents";
 import type { TerrainManager } from "../systems/TerrainManager";
 import type { Character } from "./Character";
 
@@ -157,7 +158,7 @@ export class Flamethrower {
 
     if (this.#activeCount === 0 && !this.#done) {
       this.#done = true;
-      this.#scene.events.emit("flamethrower-done");
+      this.#scene.events.emit(EVENTS.FLAMETHROWER_DONE);
       return false;
     }
 

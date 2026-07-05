@@ -1,10 +1,14 @@
 import { PLANET_CENTER } from "../config";
 import { Projectile } from "../entities/Projectile";
+import { EVENTS } from "../events/GameEvents";
 import * as ParticleSystem from "../systems/ParticleSystem";
-import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
+import { DEFAULT_FIRE_SPEED, FIRE_OFFSET } from "./constants";
+import {
+  applyBlastDamage,
+  registerWeapon,
+  type WeaponContext,
+} from "./WeaponRegistry";
 
-const FIRE_OFFSET = 40;
-const MAX_FIRE_SPEED = 15;
 const EXPLOSION_RADIUS = 60;
 const MAX_EXPLOSION_DAMAGE = 50;
 
@@ -13,6 +17,7 @@ const projectiles: Projectile[] = [];
 registerWeapon({
   id: "bazooka",
   label: "🚀  Bazooka",
+  trajectorySpeed: DEFAULT_FIRE_SPEED,
 
   fire(ctx: WeaponContext): boolean {
     const {
@@ -27,7 +32,7 @@ registerWeapon({
     } = ctx;
     const cx = worm.body.position.x;
     const cy = worm.body.position.y;
-    const speed = power * MAX_FIRE_SPEED;
+    const speed = power * DEFAULT_FIRE_SPEED;
 
     projectiles.push(
       new Projectile(
@@ -42,21 +47,19 @@ registerWeapon({
     );
 
     scene.events.once(
-      "projectile-exploded",
+      EVENTS.PROJECTILE_EXPLODED,
       ({ x, y }: { x: number; y: number }) => {
         audioManager.playExplosion();
         terrain.explode(x, y, EXPLOSION_RADIUS);
         ParticleSystem.explode(scene, x, y, PLANET_CENTER);
         ParticleSystem.debris(scene, x, y, PLANET_CENTER);
-        for (const w of allWorms) {
-          if (!w.isAlive()) continue;
-          const dx = w.body.position.x - x;
-          const dy = w.body.position.y - y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < EXPLOSION_RADIUS) {
-            w.takeDamage(MAX_EXPLOSION_DAMAGE * (1 - dist / EXPLOSION_RADIUS));
-          }
-        }
+        applyBlastDamage(
+          allWorms,
+          x,
+          y,
+          EXPLOSION_RADIUS,
+          MAX_EXPLOSION_DAMAGE,
+        );
         ctx.nextTurn();
       },
     );

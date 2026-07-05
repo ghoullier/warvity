@@ -5,6 +5,7 @@ import {
   PLANET_STYLES,
   type PlanetStyle,
 } from "../config/PlanetStyles";
+import { SCENE_KEYS } from "./SceneKeys";
 
 const PLANET_CX = CANVAS_SIZE / 2;
 const PLANET_CY = 740;
@@ -28,7 +29,7 @@ export class MenuScene extends Phaser.Scene {
   #styleSwatches: Phaser.GameObjects.Rectangle[] = [];
 
   constructor() {
-    super({ key: "MenuScene" });
+    super({ key: SCENE_KEYS.MENU });
   }
 
   // ──────────────────────────────── lifecycle ───────────────────────────────────
@@ -151,7 +152,7 @@ export class MenuScene extends Phaser.Scene {
       playBtn.setStyle({ color: "#ffff00", backgroundColor: "#333344" });
     });
     playBtn.on("pointerdown", () => {
-      this.scene.start("GameScene", {
+      this.scene.start(SCENE_KEYS.GAME, {
         teams: this.#teams,
         wormsPerTeam: this.#wormsPerTeam,
         planetStyle: this.#planetStyle,

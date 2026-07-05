@@ -1,7 +1,7 @@
 import { Flamethrower } from "../entities/Flamethrower";
+import { EVENTS } from "../events/GameEvents";
+import { FIRE_OFFSET } from "./constants";
 import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
-
-const FIRE_OFFSET = 40;
 
 let activeFlamethrower: Flamethrower | null = null;
 
@@ -24,7 +24,7 @@ registerWeapon({
     );
     audioManager.playFlamethrower();
 
-    scene.events.once("flamethrower-done", () => {
+    scene.events.once(EVENTS.FLAMETHROWER_DONE, () => {
       activeFlamethrower = null;
       ctx.nextTurn();
     });

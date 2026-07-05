@@ -1,6 +1,7 @@
 import Matter from "matter-js";
 import type Phaser from "phaser";
 import { PLANET_CENTER } from "../config";
+import { EVENTS } from "../events/GameEvents";
 
 const CHAR_WIDTH = 18;
 const CHAR_HEIGHT = 26;
@@ -150,7 +151,7 @@ export class Character {
     this.#graphics.destroy();
     this.#hpBar.destroy();
     this.#indicator.destroy();
-    this.#scene.events.emit("worm-died", this);
+    this.#scene.events.emit(EVENTS.WORM_DIED, this);
   }
 
   /** Angle from planet centre to character (the outward radial direction). */
@@ -194,12 +195,12 @@ export class Character {
         ease: "Power2",
         onComplete: () => text.destroy(),
       });
-      this.#scene.events.emit("shield-blocked", this);
+      this.#scene.events.emit(EVENTS.SHIELD_BLOCKED, this);
       return;
     }
     this.#hp = Math.max(0, this.#hp - amount);
     this.#drawHpBar();
-    this.#scene.events.emit("hp-changed", this);
+    this.#scene.events.emit(EVENTS.HP_CHANGED, this);
     if (this.#hp <= 0) this.#die();
   }
 

@@ -37,6 +37,9 @@ export class Character {
   #maxHp: number;
   #alive = true;
   #active = false;
+  #shielded = false;
+  #shieldAura: Phaser.GameObjects.Graphics | null = null;
+  #shieldTween: Phaser.Tweens.Tween | null = null;
 
   constructor(
     scene: Phaser.Scene,
@@ -142,6 +145,7 @@ export class Character {
 
   #die(): void {
     this.#alive = false;
+    this.clearShield();
     this.#scene.matter.world.remove(this.body, false);
     this.#graphics.destroy();
     this.#hpBar.destroy();
@@ -174,6 +178,25 @@ export class Character {
   /** Reduce HP by `amount`. Triggers death when HP drops to zero or below. */
   takeDamage(amount: number): void {
     if (!this.#alive) return;
+    if (this.#shielded) {
+      // Show a floating shield indicator
+      const text = this.#scene.add
+        .text(this.body.position.x, this.body.position.y - 20, "🛡️", {
+          fontSize: "20px",
+        })
+        .setOrigin(0.5, 1)
+        .setDepth(30);
+      this.#scene.tweens.add({
+        targets: text,
+        y: text.y - 30,
+        alpha: 0,
+        duration: 800,
+        ease: "Power2",
+        onComplete: () => text.destroy(),
+      });
+      this.#scene.events.emit("shield-blocked", this);
+      return;
+    }
     this.#hp = Math.max(0, this.#hp - amount);
     this.#drawHpBar();
     this.#scene.events.emit("hp-changed", this);
@@ -184,6 +207,43 @@ export class Character {
   setActive(active: boolean): void {
     this.#active = active;
     this.#drawIndicator();
+  }
+
+  /** Activate a protective shield that blocks the next incoming damage. */
+  activateShield(): void {
+    if (this.#shielded) return;
+    this.#shielded = true;
+
+    const aura = this.#scene.add.graphics();
+    aura.lineStyle(3, 0x00ffff, 0.7);
+    aura.strokeCircle(0, 0, 22);
+    aura.setPosition(this.body.position.x, this.body.position.y);
+    aura.setScale(0.9);
+    aura.setDepth(5);
+    this.#shieldAura = aura;
+
+    this.#shieldTween = this.#scene.tweens.add({
+      targets: aura,
+      scaleX: 1.1,
+      scaleY: 1.1,
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+  }
+
+  /** Remove the shield (called at the start of the worm's next turn). */
+  clearShield(): void {
+    this.#shielded = false;
+    this.#shieldTween?.stop();
+    this.#shieldTween = null;
+    this.#shieldAura?.destroy();
+    this.#shieldAura = null;
+  }
+
+  get isShielded(): boolean {
+    return this.#shielded;
   }
 
   /** Called every frame to sync the visual representation with the physics body. */
@@ -203,6 +263,11 @@ export class Character {
 
     this.#hpBar.setPosition(this.body.position.x, this.body.position.y);
     this.#hpBar.setRotation(theta + Math.PI / 2);
+
+    // Sync shield aura position (no rotation — it's always a circle)
+    if (this.#shieldAura) {
+      this.#shieldAura.setPosition(this.body.position.x, this.body.position.y);
+    }
 
     // Sync the active indicator (always above the character head in world space)
     this.#indicator.setPosition(this.body.position.x, this.body.position.y);

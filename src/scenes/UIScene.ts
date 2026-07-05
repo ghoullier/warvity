@@ -146,7 +146,8 @@ export class UIScene extends Phaser.Scene {
           | "singularity"
           | "gravity-boost"
           | "flamethrower"
-          | "shield",
+          | "shield"
+          | "jetpack",
       ) => this.#applyWeaponChange(weapon),
       this,
     );
@@ -156,6 +157,12 @@ export class UIScene extends Phaser.Scene {
         this.#applyGravityChanged(mode, remaining),
       this,
     );
+    ge.on(
+      "jetpack-tick",
+      (remaining: number) => this.#applyJetpackTick(remaining),
+      this,
+    );
+    ge.on("jetpack-end", () => this.#applyJetpackEnd(), this);
   }
 
   override shutdown(): void {
@@ -168,6 +175,8 @@ export class UIScene extends Phaser.Scene {
       game.events.off("worm-died", undefined, this);
       game.events.off("weapon-changed", undefined, this);
       game.events.off("gravity-changed", undefined, this);
+      game.events.off("jetpack-tick", undefined, this);
+      game.events.off("jetpack-end", undefined, this);
     }
     this.#wormRows.clear();
   }
@@ -286,7 +295,8 @@ export class UIScene extends Phaser.Scene {
       | "singularity"
       | "gravity-boost"
       | "flamethrower"
-      | "shield",
+      | "shield"
+      | "jetpack",
   ): void {
     const labels: Record<typeof weapon, string> = {
       bazooka: "🚀  Bazooka",
@@ -297,6 +307,7 @@ export class UIScene extends Phaser.Scene {
       "gravity-boost": "🪐  Gravity Boost",
       flamethrower: "🔥  Flamethrower",
       shield: "🛡️  Shield",
+      jetpack: "🚀  Jetpack",
     };
     this.#weaponText.setText(labels[weapon]);
   }
@@ -309,5 +320,16 @@ export class UIScene extends Phaser.Scene {
     }
     this.#gravityText.setText(`🌀 Gravity: ${mode}  (${remaining}s)`);
     this.#gravityText.setVisible(true);
+  }
+
+  /** Show jetpack countdown in the timer area. */
+  #applyJetpackTick(remaining: number): void {
+    this.#timerText.setText(String(Math.max(0, remaining)));
+    this.#timerText.setColor("#ff8800");
+  }
+
+  /** Restore timer display after jetpack ends (next turn-start will repopulate). */
+  #applyJetpackEnd(): void {
+    this.#timerText.setColor("#00dd00");
   }
 }

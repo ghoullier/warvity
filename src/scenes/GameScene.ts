@@ -72,8 +72,10 @@ export class GameScene extends Phaser.Scene {
     | "singularity"
     | "gravity-boost"
     | "flamethrower"
-    | "shield" = "bazooka";
+    | "shield"
+    | "jetpack" = "bazooka";
   #activeFlamethrower: Flamethrower | null = null;
+  #activeJetpack: Jetpack | null = null;
   #gravityMultiplier = 1;
   #activeGravityBoost: GravityBoost | null = null;
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
@@ -134,7 +136,8 @@ export class GameScene extends Phaser.Scene {
     | "singularity"
     | "gravity-boost"
     | "flamethrower"
-    | "shield" {
+    | "shield"
+    | "jetpack" {
     return this.#activeWeapon;
   }
 
@@ -221,6 +224,9 @@ export class GameScene extends Phaser.Scene {
         if (this.#activeWeapon === "gravity-boost") {
           this.#activateGravityBoost();
           // Turn advances after the 5-second boost (handled inside GravityBoost)
+        } else if (this.#activeWeapon === "jetpack") {
+          this.#activateJetpack();
+          // Turn advances after 3-second flight (handled via 'jetpack-end' event)
         } else if (this.#activeWeapon === "grenade") {
           this.#fireGrenade(angle, power, worm);
           // Grenade: turn advances on explosion (see 'grenade-exploded')
@@ -242,6 +248,13 @@ export class GameScene extends Phaser.Scene {
     );
 
     // When all flamethrower particles have finished: advance turn
+    // When jetpack flight ends: advance turn
+    this.events.on("jetpack-end", () => {
+      this.#activeJetpack = null;
+      this.#turnManager.nextTurn();
+      this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+    });
+
     this.events.on("flamethrower-done", () => {
       this.#activeFlamethrower = null;
       this.#turnManager.nextTurn();
@@ -380,12 +393,11 @@ export class GameScene extends Phaser.Scene {
       const weapons = [
         "bazooka",
         "grenade",
-        "cluster-bomb",
         "singularity",
         "teleporter",
         "gravity-boost",
         "flamethrower",
-        "shield",
+        "jetpack",
       ] as const;
       const idx = weapons.indexOf(this.#activeWeapon);
       // biome-ignore lint/style/noNonNullAssertion: modulo guarantees in-bounds index
@@ -437,6 +449,8 @@ export class GameScene extends Phaser.Scene {
           );
           this.#activeGravityBoost?.cancel();
           this.#activeGravityBoost = null;
+          this.#activeJetpack?.deactivate();
+          this.#activeJetpack = null;
           this.#turnManager.stop();
           if (winner) {
             this.scene.launch("GameOver", { winner: winner.name });
@@ -478,6 +492,21 @@ export class GameScene extends Phaser.Scene {
 
     // Character movement — only the active worm responds (← → now rotate aim, ↑ still jumps)
     const active = this.#turnManager.getCurrentWorm();
+
+    const jetpackActive = this.#activeJetpack?.isActive() ?? false;
+
+    if (jetpackActive) {
+      // Partially cancel gravity for the worm: net = 0.2 (cancel 80%)
+      applyRadialGravity(
+        [active.body],
+        PLANET_CENTER,
+        GRAVITY_STRENGTH,
+        this.#gravityMultiplier * -0.8,
+      );
+      // biome-ignore lint/style/noNonNullAssertion: guarded by jetpackActive check
+      this.#activeJetpack!.update(this.#cursors);
+    }
+
     if (active?.isAlive() && this.#cursors) {
       if (Phaser.Input.Keyboard.JustDown(this.#cursors.up)) {
         active.jump();
@@ -630,6 +659,19 @@ export class GameScene extends Phaser.Scene {
         Math.sin(angle) * speed,
       ),
     );
+  }
+
+  #activateJetpack(): void {
+    if (this.#activeJetpack?.isActive()) return;
+    this.#turnManager.stopTimer();
+    this.#aimingSystem.deactivate();
+    const jetpack = new Jetpack(
+      this,
+      this.#turnManager.getCurrentWorm(),
+      this.#audioManager,
+    );
+    this.#activeJetpack = jetpack;
+    jetpack.activate();
   }
 
   #addStars(): void {

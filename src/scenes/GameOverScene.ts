@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { CANVAS_SIZE } from "../config";
+import { SceneKeys } from "./SceneKeys";
 
 /**
  * Overlay scene displayed when the game ends.
@@ -10,7 +11,7 @@ export class GameOverScene extends Phaser.Scene {
   #winner = "";
 
   constructor() {
-    super({ key: "GameOver" });
+    super({ key: SceneKeys.GameOver });
   }
 
   // ──────────────────────────────── lifecycle ───────────────────────────────────
@@ -59,9 +60,9 @@ export class GameOverScene extends Phaser.Scene {
     btn.on("pointerover", () => btn.setStyle({ color: "#ffffff" }));
     btn.on("pointerout", () => btn.setStyle({ color: "#ffff00" }));
     btn.on("pointerdown", () => {
-      this.scene.stop("GameOver");
-      this.scene.stop("UIScene");
-      this.scene.start("MenuScene");
+      this.scene.stop(SceneKeys.GameOver);
+      this.scene.stop(SceneKeys.UI);
+      this.scene.start(SceneKeys.Menu);
     });
   }
 }

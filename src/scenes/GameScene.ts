@@ -22,7 +22,9 @@ import {
   resetAllWeapons,
   setupWeaponListeners,
   type WeaponContext,
+  type WeaponId,
 } from "../weapons/WeaponRegistry";
+import { SceneKeys } from "./SceneKeys";
 
 const TEAM_COLORS = [0xff6b35, 0x35aaff, 0x35ff6b, 0xff35aa] as const;
 const TEAM_NAMES = ["Team A", "Team B", "Team C", "Team D"] as const;
@@ -48,7 +50,7 @@ export class GameScene extends Phaser.Scene {
   #teleporter!: Teleporter;
   #allCharacters: Character[] = [];
   #teams: Array<{ name: string; worms: Character[] }> = [];
-  #activeWeapon = "bazooka";
+  #activeWeapon: WeaponId = "bazooka";
   #gravityMultiplier = 1;
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   #cameraController!: CameraController;
@@ -56,7 +58,7 @@ export class GameScene extends Phaser.Scene {
   #planetStyle: PlanetStyle = DEFAULT_PLANET_STYLE;
 
   constructor() {
-    super({ key: "GameScene" });
+    super({ key: SceneKeys.Game });
   }
 
   // ──────────────────────────────── init ────────────────────────────────────────
@@ -96,7 +98,7 @@ export class GameScene extends Phaser.Scene {
     return this.#turnManager.getRemainingTime();
   }
 
-  get activeWeapon(): string {
+  get activeWeapon(): WeaponId {
     return this.#activeWeapon;
   }
 
@@ -263,9 +265,9 @@ export class GameScene extends Phaser.Scene {
           resetAllWeapons();
           this.#turnManager.stop();
           if (winner) {
-            this.scene.launch("GameOver", { winner: winner.name });
+            this.scene.launch(SceneKeys.GameOver, { winner: winner.name });
           } else {
-            this.scene.launch("GameOver", { winner: "Nobody" });
+            this.scene.launch(SceneKeys.GameOver, { winner: "Nobody" });
           }
           return;
         }
@@ -286,8 +288,8 @@ export class GameScene extends Phaser.Scene {
       .setDepth(10);
 
     // Launch the HUD overlay (restart if already running)
-    this.scene.stop("UIScene");
-    this.scene.launch("UIScene");
+    this.scene.stop(SceneKeys.UI);
+    this.scene.launch(SceneKeys.UI);
   }
 
   override update(_time: number, delta: number): void {

@@ -2,8 +2,9 @@ import Phaser from "phaser";
 import { CANVAS_SIZE } from "../config";
 import type { Character } from "../entities/Character";
 import type { AudioManager } from "../systems/AudioManager";
-import { getWeapon } from "../weapons/WeaponRegistry";
+import { getWeapon, type WeaponId } from "../weapons/WeaponRegistry";
 import type { GameScene } from "./GameScene";
+import { SceneKeys } from "./SceneKeys";
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 const HP_BAR_W = 68;
@@ -41,13 +42,13 @@ export class UIScene extends Phaser.Scene {
   #audioManager: AudioManager | null = null;
 
   constructor() {
-    super({ key: "UIScene" });
+    super({ key: SceneKeys.UI });
   }
 
   // ──────────────────────────────── lifecycle ───────────────────────────────────
 
   create(): void {
-    const game = this.scene.get("GameScene") as GameScene;
+    const game = this.scene.get(SceneKeys.Game) as GameScene;
     this.#audioManager = game.audioManager;
 
     // ── Timer (top center) ────────────────────────────────────────────────────
@@ -138,7 +139,7 @@ export class UIScene extends Phaser.Scene {
     ge.on("worm-died", (worm: Character) => this.#refreshHpFill(worm), this);
     ge.on(
       "weapon-changed",
-      (weapon: string) => this.#applyWeaponChange(weapon),
+      (weapon: WeaponId) => this.#applyWeaponChange(weapon),
       this,
     );
     ge.on(
@@ -157,7 +158,7 @@ export class UIScene extends Phaser.Scene {
 
   override shutdown(): void {
     // Remove listeners keyed by this scene context so they don't leak
-    const game = this.scene.get("GameScene") as GameScene | null;
+    const game = this.scene.get(SceneKeys.Game) as GameScene | null;
     if (game) {
       game.events.off("turn-start", undefined, this);
       game.events.off("timer-tick", undefined, this);
@@ -276,7 +277,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   /** Update the active weapon display. */
-  #applyWeaponChange(weapon: string): void {
+  #applyWeaponChange(weapon: WeaponId): void {
     this.#weaponText.setText(getWeapon(weapon)?.label ?? weapon);
   }
 

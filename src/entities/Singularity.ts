@@ -9,6 +9,7 @@ const RING_GAP = 0.4;
 const FLIGHT_TIMEOUT = 1000; // ms before auto-freeze
 const ACTIVE_DURATION = 3000; // ms of attraction phase
 const ATTRACTION_FORCE = 0.005;
+const MAX_INFLUENCE_RADIUS = 400; // bodies beyond this distance are skipped
 const EXPLOSION_VISUAL_RADIUS = 80;
 const EXPLOSION_DURATION = 500;
 
@@ -182,7 +183,8 @@ export class Singularity {
       const dx = sx - body.position.x;
       const dy = sy - body.position.y;
       const distSq = dx * dx + dy * dy;
-      if (distSq < 1) continue;
+      if (distSq < 1 || distSq > MAX_INFLUENCE_RADIUS * MAX_INFLUENCE_RADIUS)
+        continue;
       const dist = Math.sqrt(distSq);
       const force = ATTRACTION_FORCE * (body.mass ?? 1);
       Matter.Body.applyForce(

@@ -161,6 +161,80 @@ export class AudioManager {
     }
   }
 
+  /** High-frequency pop + short whoosh: cluster bomb splitting into sub-munitions. */
+  playClusterSplit(): void {
+    if (this.#muted) return;
+    const now = this.#ctx.currentTime;
+
+    // Whoosh: bandpass filtered noise sweep
+    const dur = 0.18;
+    const bufSize = Math.ceil(this.#ctx.sampleRate * dur);
+    const buf = this.#ctx.createBuffer(1, bufSize, this.#ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    const noise = this.#ctx.createBufferSource();
+    noise.buffer = buf;
+    const bp = this.#ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 1800;
+    bp.Q.value = 1.5;
+    const whooshGain = this.#ctx.createGain();
+    whooshGain.gain.setValueAtTime(0.45, now);
+    whooshGain.gain.linearRampToValueAtTime(0, now + dur);
+    noise.connect(bp);
+    bp.connect(whooshGain);
+    whooshGain.connect(this.#master);
+    noise.start(now);
+    noise.stop(now + dur);
+
+    // Pop: short triangle burst
+    const osc = this.#ctx.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(900, now);
+    osc.frequency.linearRampToValueAtTime(400, now + 0.06);
+    const popGain = this.#ctx.createGain();
+    popGain.gain.setValueAtTime(0.35, now);
+    popGain.gain.linearRampToValueAtTime(0, now + 0.06);
+    osc.connect(popGain);
+    popGain.connect(this.#master);
+    osc.start(now);
+    osc.stop(now + 0.06);
+  }
+
+  /** Smaller explosion sound for each sub-munition detonation (lower gain). */
+  playSubExplosion(): void {
+    if (this.#muted) return;
+    const duration = 0.18;
+    const bufferSize = Math.ceil(this.#ctx.sampleRate * duration);
+    const buffer = this.#ctx.createBuffer(1, bufferSize, this.#ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    const source = this.#ctx.createBufferSource();
+    source.buffer = buffer;
+
+    const filter = this.#ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 900;
+
+    const gain = this.#ctx.createGain();
+    const now = this.#ctx.currentTime;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.4, now + 0.01);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.04);
+    gain.gain.linearRampToValueAtTime(0, now + duration);
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.#master);
+    source.start(now);
+    source.stop(now + duration);
+  }
+
   /**
    * Start the procedural background music loop.
    * Plays random notes from a pentatonic scale with 1–3 s gaps.

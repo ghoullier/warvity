@@ -141,6 +141,7 @@ export class UIScene extends Phaser.Scene {
         weapon:
           | "bazooka"
           | "grenade"
+          | "cluster-bomb"
           | "teleporter"
           | "singularity"
           | "gravity-boost"
@@ -280,6 +281,7 @@ export class UIScene extends Phaser.Scene {
     weapon:
       | "bazooka"
       | "grenade"
+      | "cluster-bomb"
       | "teleporter"
       | "singularity"
       | "gravity-boost"
@@ -289,6 +291,7 @@ export class UIScene extends Phaser.Scene {
     const labels: Record<typeof weapon, string> = {
       bazooka: "🚀  Bazooka",
       grenade: "💣  Grenade",
+      "cluster-bomb": "🌟  Cluster Bomb",
       teleporter: "🌀  Teleporter",
       singularity: "🕳️  Singularity",
       "gravity-boost": "🪐  Gravity Boost",

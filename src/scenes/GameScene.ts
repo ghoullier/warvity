@@ -7,6 +7,12 @@ import {
 } from "../config";
 import { DEFAULT_PLANET_STYLE, type PlanetStyle } from "../config/PlanetStyles";
 import { Character } from "../entities/Character";
+import {
+  ClusterBomb,
+  MAX_CLUSTER_SPEED,
+  MAX_SUB_DAMAGE,
+  SUB_EXPLOSION_RADIUS,
+} from "../entities/ClusterBomb";
 import { Flamethrower } from "../entities/Flamethrower";
 import { GravityBoost } from "../entities/GravityBoost";
 import { Grenade, MAX_GRENADE_SPEED } from "../entities/Grenade";
@@ -56,10 +62,12 @@ export class GameScene extends Phaser.Scene {
   #teams: Array<{ name: string; worms: Character[] }> = [];
   #projectiles: Projectile[] = [];
   #grenades: Grenade[] = [];
+  #clusterBombs: ClusterBomb[] = [];
   #singularities: Singularity[] = [];
   #activeWeapon:
     | "bazooka"
     | "grenade"
+    | "cluster-bomb"
     | "teleporter"
     | "singularity"
     | "gravity-boost"
@@ -94,6 +102,7 @@ export class GameScene extends Phaser.Scene {
     this.#teams = [];
     this.#projectiles = [];
     this.#grenades = [];
+    this.#clusterBombs = [];
     this.#singularities = [];
     this.#activeWeapon = "bazooka";
     this.#activeFlamethrower = null;
@@ -120,6 +129,7 @@ export class GameScene extends Phaser.Scene {
   get activeWeapon():
     | "bazooka"
     | "grenade"
+    | "cluster-bomb"
     | "teleporter"
     | "singularity"
     | "gravity-boost"
@@ -214,6 +224,9 @@ export class GameScene extends Phaser.Scene {
         } else if (this.#activeWeapon === "grenade") {
           this.#fireGrenade(angle, power, worm);
           // Grenade: turn advances on explosion (see 'grenade-exploded')
+        } else if (this.#activeWeapon === "cluster-bomb") {
+          this.#fireClusterBomb(angle, power, worm);
+          // Cluster bomb: turn advances when all sub-munitions explode (see 'cluster-exploded')
         } else if (this.#activeWeapon === "singularity") {
           this.#fireSingularity(angle, power, worm);
           // Singularity: turn advances on explosion (see 'singularity-exploded')
@@ -316,6 +329,38 @@ export class GameScene extends Phaser.Scene {
       },
     );
 
+    // When the cluster bomb splits: play the split sound
+    this.events.on("cluster-split", () => {
+      this.#audioManager.playClusterSplit();
+    });
+
+    // When a sub-munition detonates: destroy terrain, apply damage, play sound
+    this.events.on(
+      "sub-munition-exploded",
+      ({ x, y }: { x: number; y: number }) => {
+        this.#audioManager.playSubExplosion();
+        this.#terrain.explode(x, y, SUB_EXPLOSION_RADIUS);
+        ParticleSystem.explode(this, x, y, PLANET_CENTER);
+
+        for (const worm of this.#allCharacters) {
+          if (!worm.isAlive()) continue;
+          const dx = worm.body.position.x - x;
+          const dy = worm.body.position.y - y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < SUB_EXPLOSION_RADIUS) {
+            const damage = MAX_SUB_DAMAGE * (1 - dist / SUB_EXPLOSION_RADIUS);
+            worm.takeDamage(damage);
+          }
+        }
+      },
+    );
+
+    // When all sub-munitions have exploded: advance turn
+    this.events.on("cluster-exploded", () => {
+      this.#turnManager.nextTurn();
+      this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+    });
+
     // Log the initial worm and activate aiming on it
     const first = this.#turnManager.getCurrentWorm();
     console.log(
@@ -335,6 +380,7 @@ export class GameScene extends Phaser.Scene {
       const weapons = [
         "bazooka",
         "grenade",
+        "cluster-bomb",
         "singularity",
         "teleporter",
         "gravity-boost",
@@ -456,6 +502,10 @@ export class GameScene extends Phaser.Scene {
     for (const g of this.#grenades) g.update();
     this.#grenades = this.#grenades.filter((g) => g.isActive());
 
+    // Update cluster bombs and discard inactive ones
+    for (const c of this.#clusterBombs) c.update();
+    this.#clusterBombs = this.#clusterBombs.filter((c) => c.isActive());
+
     // Update singularities and discard inactive ones
     for (const s of this.#singularities) s.update();
     this.#singularities = this.#singularities.filter((s) => s.isActive());
@@ -561,6 +611,24 @@ export class GameScene extends Phaser.Scene {
       angle,
       this.#terrain,
       this.#allCharacters,
+    );
+    this.#activeFlamethrower.start();
+    this.#audioManager.playFlamethrower();
+  }
+
+  #fireClusterBomb(angle: number, power: number, character: Character): void {
+    const cx = character.body.position.x;
+    const cy = character.body.position.y;
+    const speed = power * MAX_CLUSTER_SPEED;
+
+    this.#clusterBombs.push(
+      new ClusterBomb(
+        this,
+        cx + Math.cos(angle) * FIRE_OFFSET,
+        cy + Math.sin(angle) * FIRE_OFFSET,
+        Math.cos(angle) * speed,
+        Math.sin(angle) * speed,
+      ),
     );
   }
 

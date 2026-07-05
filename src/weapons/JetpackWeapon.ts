@@ -1,4 +1,4 @@
-import { GRAVITY_STRENGTH, PLANET_CENTER } from "../config";
+import { GRAVITY_STRENGTH, PLANET_CENTER, WEAPON_CONFIG } from "../config";
 import { Jetpack } from "../entities/Jetpack";
 import { applyRadialGravity } from "../systems/GravitySystem";
 import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
@@ -29,12 +29,12 @@ registerWeapon({
 
   update(ctx: WeaponContext): void {
     if (!activeJetpack?.isActive()) return;
-    // Cancel 80% of gravity so net radial acceleration is ~0.2× normal
+    // Cancel most gravity so net radial acceleration equals gravityReduction × normal
     applyRadialGravity(
       [ctx.worm.body],
       PLANET_CENTER,
       GRAVITY_STRENGTH,
-      ctx.gravityMultiplier * -0.8,
+      ctx.gravityMultiplier * -(1 - WEAPON_CONFIG.jetpack.gravityReduction),
     );
     const cursors = ctx.scene.input.keyboard?.createCursorKeys();
     activeJetpack.update(cursors);

@@ -1,11 +1,7 @@
-import { PLANET_CENTER } from "../config";
-import {
-  ClusterBomb,
-  MAX_CLUSTER_SPEED,
-  MAX_SUB_DAMAGE,
-  SUB_EXPLOSION_RADIUS,
-} from "../entities/ClusterBomb";
+import { PLANET_CENTER, WEAPON_CONFIG } from "../config";
+import { ClusterBomb } from "../entities/ClusterBomb";
 import * as ParticleSystem from "../systems/ParticleSystem";
+import { applyExplosion } from "./explosionHelper";
 import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
 
 const FIRE_OFFSET = 40;
@@ -17,10 +13,10 @@ registerWeapon({
   label: "🌟  Cluster Bomb",
 
   fire(ctx: WeaponContext): boolean {
-    const { scene, worm, angle, power, terrain, allWorms, audioManager } = ctx;
+    const { scene, worm, angle, power, audioManager } = ctx;
     const cx = worm.body.position.x;
     const cy = worm.body.position.y;
-    const speed = power * MAX_CLUSTER_SPEED;
+    const speed = power * WEAPON_CONFIG.clusterBomb.speed;
 
     clusterBombs.push(
       new ClusterBomb(
@@ -38,17 +34,14 @@ registerWeapon({
 
     const onSubExploded = ({ x, y }: { x: number; y: number }) => {
       audioManager.playSubExplosion();
-      terrain.explode(x, y, SUB_EXPLOSION_RADIUS);
+      applyExplosion(
+        ctx,
+        x,
+        y,
+        WEAPON_CONFIG.clusterBomb.subRadius,
+        WEAPON_CONFIG.clusterBomb.subDamage,
+      );
       ParticleSystem.explode(scene, x, y, PLANET_CENTER);
-      for (const w of allWorms) {
-        if (!w.isAlive()) continue;
-        const dx = w.body.position.x - x;
-        const dy = w.body.position.y - y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < SUB_EXPLOSION_RADIUS) {
-          w.takeDamage(MAX_SUB_DAMAGE * (1 - dist / SUB_EXPLOSION_RADIUS));
-        }
-      }
     };
 
     scene.events.on("sub-munition-exploded", onSubExploded);

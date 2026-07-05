@@ -1,12 +1,10 @@
-import { PLANET_CENTER } from "../config";
+import { PLANET_CENTER, WEAPON_CONFIG } from "../config";
 import { Singularity } from "../entities/Singularity";
 import * as ParticleSystem from "../systems/ParticleSystem";
+import { applyExplosion } from "./explosionHelper";
 import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
 
 const FIRE_OFFSET = 40;
-const MAX_FIRE_SPEED = 15;
-const SINGULARITY_EXPLOSION_RADIUS = 80;
-const MAX_SINGULARITY_DAMAGE = 60;
 
 const singularities: Singularity[] = [];
 
@@ -15,10 +13,10 @@ registerWeapon({
   label: "🕳️  Singularity",
 
   fire(ctx: WeaponContext): boolean {
-    const { scene, worm, angle, power, terrain, allWorms, audioManager } = ctx;
+    const { scene, worm, angle, power, audioManager } = ctx;
     const cx = worm.body.position.x;
     const cy = worm.body.position.y;
-    const speed = power * MAX_FIRE_SPEED;
+    const speed = power * WEAPON_CONFIG.singularity.speed;
 
     singularities.push(
       new Singularity(
@@ -34,21 +32,15 @@ registerWeapon({
       "singularity-exploded",
       ({ x, y }: { x: number; y: number }) => {
         audioManager.playExplosion();
-        terrain.explode(x, y, SINGULARITY_EXPLOSION_RADIUS);
+        applyExplosion(
+          ctx,
+          x,
+          y,
+          WEAPON_CONFIG.singularity.radius,
+          WEAPON_CONFIG.singularity.damage,
+        );
         ParticleSystem.explode(scene, x, y, PLANET_CENTER);
         ParticleSystem.debris(scene, x, y, PLANET_CENTER);
-        for (const w of allWorms) {
-          if (!w.isAlive()) continue;
-          const dx = w.body.position.x - x;
-          const dy = w.body.position.y - y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < SINGULARITY_EXPLOSION_RADIUS) {
-            w.takeDamage(
-              MAX_SINGULARITY_DAMAGE *
-                (1 - dist / SINGULARITY_EXPLOSION_RADIUS),
-            );
-          }
-        }
         ctx.nextTurn();
       },
     );

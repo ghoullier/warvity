@@ -1,10 +1,8 @@
-import { PLANET_CENTER } from "../config";
+import { PLANET_CENTER, WEAPON_CONFIG } from "../config";
 import { LandMine } from "../entities/LandMine";
 import * as ParticleSystem from "../systems/ParticleSystem";
+import { applyExplosion } from "./explosionHelper";
 import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
-
-const MINE_EXPLOSION_RADIUS = 60;
-const MINE_EXPLOSION_DAMAGE = 50;
 
 const mines: LandMine[] = [];
 
@@ -42,20 +40,15 @@ registerWeapon({
     scene.events.on("mine-exploded", ({ x, y }: { x: number; y: number }) => {
       const ctx = buildCtx();
       ctx.audioManager.playMineExplosion();
-      ctx.terrain.explode(x, y, MINE_EXPLOSION_RADIUS);
+      applyExplosion(
+        ctx,
+        x,
+        y,
+        WEAPON_CONFIG.landMine.radius,
+        WEAPON_CONFIG.landMine.damage,
+      );
       ParticleSystem.explode(scene, x, y, PLANET_CENTER);
       ParticleSystem.debris(scene, x, y, PLANET_CENTER);
-      for (const w of ctx.allWorms) {
-        if (!w.isAlive()) continue;
-        const dx = w.body.position.x - x;
-        const dy = w.body.position.y - y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < MINE_EXPLOSION_RADIUS) {
-          w.takeDamage(
-            MINE_EXPLOSION_DAMAGE * (1 - dist / MINE_EXPLOSION_RADIUS),
-          );
-        }
-      }
       ctx.nextTurn();
     });
   },

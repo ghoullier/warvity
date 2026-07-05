@@ -1,11 +1,10 @@
-import { PLANET_CENTER } from "../config";
-import { Grenade, MAX_GRENADE_SPEED } from "../entities/Grenade";
+import { PLANET_CENTER, WEAPON_CONFIG } from "../config";
+import { Grenade } from "../entities/Grenade";
 import * as ParticleSystem from "../systems/ParticleSystem";
+import { applyExplosion } from "./explosionHelper";
 import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
 
 const FIRE_OFFSET = 40;
-const GRENADE_EXPLOSION_RADIUS = 50;
-const MAX_GRENADE_DAMAGE = 40;
 
 const grenades: Grenade[] = [];
 
@@ -14,10 +13,10 @@ registerWeapon({
   label: "💣  Grenade",
 
   fire(ctx: WeaponContext): boolean {
-    const { scene, worm, angle, power, terrain, allWorms, audioManager } = ctx;
+    const { scene, worm, angle, power, audioManager } = ctx;
     const cx = worm.body.position.x;
     const cy = worm.body.position.y;
-    const speed = power * MAX_GRENADE_SPEED;
+    const speed = power * WEAPON_CONFIG.grenade.speed;
 
     grenades.push(
       new Grenade(
@@ -33,20 +32,15 @@ registerWeapon({
       "grenade-exploded",
       ({ x, y }: { x: number; y: number }) => {
         audioManager.playExplosion();
-        terrain.explode(x, y, GRENADE_EXPLOSION_RADIUS);
+        applyExplosion(
+          ctx,
+          x,
+          y,
+          WEAPON_CONFIG.grenade.radius,
+          WEAPON_CONFIG.grenade.damage,
+        );
         ParticleSystem.explode(scene, x, y, PLANET_CENTER);
         ParticleSystem.debris(scene, x, y, PLANET_CENTER);
-        for (const w of allWorms) {
-          if (!w.isAlive()) continue;
-          const dx = w.body.position.x - x;
-          const dy = w.body.position.y - y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < GRENADE_EXPLOSION_RADIUS) {
-            w.takeDamage(
-              MAX_GRENADE_DAMAGE * (1 - dist / GRENADE_EXPLOSION_RADIUS),
-            );
-          }
-        }
         ctx.nextTurn();
       },
     );

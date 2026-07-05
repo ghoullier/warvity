@@ -127,6 +127,12 @@ export class TerrainManager {
     return this.#bitmap[row * this.#bitmapSize + col] === 1;
   }
 
+  /** Destroy all Phaser display objects owned by this manager. */
+  destroy(): void {
+    this.#renderTexture.destroy();
+    this.#outlineGraphics.destroy();
+  }
+
   /**
    * Destroys terrain in a circle of the given radius at world-space (x, y).
    * Updates the bitmap and punches a visual hole in the RenderTexture.

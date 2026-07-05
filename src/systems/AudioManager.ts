@@ -58,6 +58,7 @@ export class AudioManager {
     gain.connect(this.#master);
     source.start(now);
     source.stop(now + duration);
+    this.#scheduleDisconnect(duration * 1000, source, filter, gain);
   }
 
   /** Rising sine oscillator sweep: 200→500 Hz over 0.15 s. */
@@ -80,6 +81,10 @@ export class AudioManager {
     gain.connect(this.#master);
     osc.start(now);
     osc.stop(now + duration);
+    osc.addEventListener("ended", () => {
+      osc.disconnect();
+      gain.disconnect();
+    });
   }
 
   /** High-pass filtered white noise whoosh (firing a projectile). */
@@ -110,6 +115,7 @@ export class AudioManager {
     gain.connect(this.#master);
     source.start(now);
     source.stop(now + duration);
+    this.#scheduleDisconnect(duration * 1000, source, filter, gain);
   }
 
   /** Falling oscillator: 500→0 Hz over 0.5 s (worm death). */
@@ -132,6 +138,10 @@ export class AudioManager {
     gain.connect(this.#master);
     osc.start(now);
     osc.stop(now + duration);
+    osc.addEventListener("ended", () => {
+      osc.disconnect();
+      gain.disconnect();
+    });
   }
 
   /** Short bandpass-filtered noise burst (jetpack thrust). */
@@ -164,6 +174,7 @@ export class AudioManager {
     gain.connect(this.#master);
     source.start(now);
     source.stop(now + duration);
+    this.#scheduleDisconnect(duration * 1000, source, filter, gain);
   }
 
   /** Sputtering engine-stop sound (jetpack fuel exhausted). */
@@ -191,6 +202,10 @@ export class AudioManager {
       gain.connect(this.#master);
       osc.start(now);
       osc.stop(now + duration);
+      osc.addEventListener("ended", () => {
+        osc.disconnect();
+        gain.disconnect();
+      });
     }
   }
 
@@ -218,6 +233,10 @@ export class AudioManager {
       gain.connect(this.#master);
       osc.start(now);
       osc.stop(now + duration);
+      osc.addEventListener("ended", () => {
+        osc.disconnect();
+        gain.disconnect();
+      });
     }
   }
 
@@ -248,6 +267,7 @@ export class AudioManager {
     whooshGain.connect(this.#master);
     noise.start(now);
     noise.stop(now + dur);
+    this.#scheduleDisconnect(dur * 1000, noise, bp, whooshGain);
 
     // Pop: short triangle burst
     const osc = this.#ctx.createOscillator();
@@ -261,6 +281,10 @@ export class AudioManager {
     popGain.connect(this.#master);
     osc.start(now);
     osc.stop(now + 0.06);
+    osc.addEventListener("ended", () => {
+      osc.disconnect();
+      popGain.disconnect();
+    });
   }
 
   /** Smaller explosion sound for each sub-munition detonation (lower gain). */
@@ -293,6 +317,7 @@ export class AudioManager {
     gain.connect(this.#master);
     source.start(now);
     source.stop(now + duration);
+    this.#scheduleDisconnect(duration * 1000, source, filter, gain);
   }
 
   /**
@@ -355,6 +380,7 @@ export class AudioManager {
     gain.connect(this.#master);
     source.start(now);
     source.stop(now + duration);
+    this.#scheduleDisconnect(duration * 1000, source, bandPass, lowPass, gain);
   }
 
   /** Rising hum-chime: 300→900 Hz over 0.5 s (shield activation). */
@@ -383,6 +409,10 @@ export class AudioManager {
       gain.connect(this.#master);
       osc.start(now);
       osc.stop(now + duration);
+      osc.addEventListener("ended", () => {
+        osc.disconnect();
+        gain.disconnect();
+      });
     }
   }
 
@@ -405,6 +435,10 @@ export class AudioManager {
     gain.connect(this.#master);
     osc.start(now);
     osc.stop(now + duration);
+    osc.addEventListener("ended", () => {
+      osc.disconnect();
+      gain.disconnect();
+    });
   }
 
   /** Toggle global mute on/off. Returns the new muted state. */
@@ -434,6 +468,10 @@ export class AudioManager {
     gain.connect(this.#master);
     osc.start(now);
     osc.stop(now + duration);
+    osc.addEventListener("ended", () => {
+      osc.disconnect();
+      gain.disconnect();
+    });
   }
 
   /** Short high-pitched beep: mine is detecting a nearby worm. */
@@ -451,6 +489,10 @@ export class AudioManager {
     gain.connect(this.#master);
     osc.start(now);
     osc.stop(now + duration);
+    osc.addEventListener("ended", () => {
+      osc.disconnect();
+      gain.disconnect();
+    });
   }
 
   /** Sharper explosion (mine detonation — higher frequencies than a regular blast). */
@@ -484,9 +526,21 @@ export class AudioManager {
     gain.connect(this.#master);
     source.start(now);
     source.stop(now + duration);
+    this.#scheduleDisconnect(duration * 1000, source, filter, gain);
   }
 
   // ──────────────────────────────── private helpers ─────────────────────────────
+
+  /** Disconnect all given nodes `durationMs + 100` ms after they were started. */
+  #scheduleDisconnect(durationMs: number, ...nodes: AudioNode[]): void {
+    setTimeout(() => {
+      for (const n of nodes) {
+        try {
+          n.disconnect();
+        } catch {}
+      }
+    }, durationMs + 100);
+  }
 
   #scheduleNextNote(): void {
     if (!this.#musicRunning) return;
@@ -521,5 +575,9 @@ export class AudioManager {
     gain.connect(this.#master);
     osc.start(now);
     osc.stop(now + duration);
+    osc.addEventListener("ended", () => {
+      osc.disconnect();
+      gain.disconnect();
+    });
   }
 }

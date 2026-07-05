@@ -26,6 +26,11 @@ export function multiplierForMode(mode: GravityMode): number {
 export class GravityBoost {
   static #modeIndex = 0;
 
+  /** Reset the mode cycle back to '2x' — call from GameScene.shutdown(). */
+  static resetModeIndex(): void {
+    GravityBoost.#modeIndex = 0;
+  }
+
   /** Peek at the mode that will be used on the next activation. */
   static get nextMode(): GravityMode {
     // biome-ignore lint/style/noNonNullAssertion: modeIndex is always clamped within MODES bounds

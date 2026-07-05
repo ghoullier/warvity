@@ -7,6 +7,7 @@ import {
 } from "../config";
 import { DEFAULT_PLANET_STYLE, type PlanetStyle } from "../config/PlanetStyles";
 import { Character } from "../entities/Character";
+import { Flamethrower } from "../entities/Flamethrower";
 import { GravityBoost } from "../entities/GravityBoost";
 import { Grenade, MAX_GRENADE_SPEED } from "../entities/Grenade";
 import { Projectile } from "../entities/Projectile";
@@ -61,7 +62,9 @@ export class GameScene extends Phaser.Scene {
     | "grenade"
     | "teleporter"
     | "singularity"
-    | "gravity-boost" = "bazooka";
+    | "gravity-boost"
+    | "flamethrower" = "bazooka";
+  #activeFlamethrower: Flamethrower | null = null;
   #gravityMultiplier = 1;
   #activeGravityBoost: GravityBoost | null = null;
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
@@ -92,6 +95,7 @@ export class GameScene extends Phaser.Scene {
     this.#grenades = [];
     this.#singularities = [];
     this.#activeWeapon = "bazooka";
+    this.#activeFlamethrower = null;
   }
 
   // ──────────────────────────────── public getters ──────────────────────────────
@@ -117,7 +121,8 @@ export class GameScene extends Phaser.Scene {
     | "grenade"
     | "teleporter"
     | "singularity"
-    | "gravity-boost" {
+    | "gravity-boost"
+    | "flamethrower" {
     return this.#activeWeapon;
   }
 
@@ -209,12 +214,23 @@ export class GameScene extends Phaser.Scene {
         } else if (this.#activeWeapon === "singularity") {
           this.#fireSingularity(angle, power, worm);
           // Singularity: turn advances on explosion (see 'singularity-exploded')
+        } else if (this.#activeWeapon === "flamethrower") {
+          this.#audioManager.playFlamethrower();
+          this.#fireFlamethrower(angle, worm);
+          // Flamethrower: turn advances when all particles settle (see 'flamethrower-done')
         } else {
           this.#fireProjectile(angle, power, worm);
           // Bazooka: turn advances once the projectile explodes (see 'projectile-exploded')
         }
       },
     );
+
+    // When all flamethrower particles have finished: advance turn
+    this.events.on("flamethrower-done", () => {
+      this.#activeFlamethrower = null;
+      this.#turnManager.nextTurn();
+      this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+    });
 
     // When the projectile detonates: destroy terrain, apply damage, advance turn
     this.events.on(
@@ -319,6 +335,7 @@ export class GameScene extends Phaser.Scene {
         "singularity",
         "teleporter",
         "gravity-boost",
+        "flamethrower",
       ] as const;
       const idx = weapons.indexOf(this.#activeWeapon);
       // biome-ignore lint/style/noNonNullAssertion: modulo guarantees in-bounds index
@@ -423,6 +440,11 @@ export class GameScene extends Phaser.Scene {
     // Update singularities and discard inactive ones
     for (const s of this.#singularities) s.update();
     this.#singularities = this.#singularities.filter((s) => s.isActive());
+
+    // Update active flamethrower particles
+    if (this.#activeFlamethrower) {
+      this.#activeFlamethrower.update(_delta);
+    }
   }
 
   // ──────────────────────────────── private helpers ─────────────────────────────
@@ -503,6 +525,20 @@ export class GameScene extends Phaser.Scene {
         Math.cos(angle) * speed,
         Math.sin(angle) * speed,
       ),
+    );
+  }
+
+  #fireFlamethrower(angle: number, character: Character): void {
+    const cx = character.body.position.x;
+    const cy = character.body.position.y;
+
+    this.#activeFlamethrower = new Flamethrower(
+      this,
+      cx + Math.cos(angle) * FIRE_OFFSET,
+      cy + Math.sin(angle) * FIRE_OFFSET,
+      angle,
+      this.#terrain,
+      this.#allCharacters,
     );
   }
 

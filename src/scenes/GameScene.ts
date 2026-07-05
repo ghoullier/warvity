@@ -589,6 +589,11 @@ export class GameScene extends Phaser.Scene {
       angle,
       this.#terrain,
       this.#allCharacters,
+    );
+    this.#activeFlamethrower.start();
+    this.#audioManager.playFlamethrower();
+  }
+
   #fireClusterBomb(angle: number, power: number, character: Character): void {
     const cx = character.body.position.x;
     const cy = character.body.position.y;

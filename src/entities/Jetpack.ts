@@ -2,6 +2,7 @@ import Matter from "matter-js";
 import type Phaser from "phaser";
 import { PLANET_CENTER } from "../config";
 import type { AudioManager } from "../systems/AudioManager";
+import { toMatterBody } from "../utils/matterUtils";
 import type { Character } from "./Character";
 
 const THRUST_FORCE = 0.005;
@@ -120,7 +121,7 @@ export class Jetpack {
 
     if (thrusting) {
       Matter.Body.applyForce(
-        this.#worm.body as unknown as Matter.Body,
+        toMatterBody(this.#worm.body),
         this.#worm.body.position,
         { x: fx, y: fy },
       );

@@ -3,6 +3,7 @@ import type Phaser from "phaser";
 import { PLANET_CENTER, PLANET_RADIUS } from "../config";
 import type { CameraController } from "../systems/CameraController";
 import type { TerrainManager } from "../systems/TerrainManager";
+import { toMatterBody, toMatterEngine } from "../utils/matterUtils";
 
 const PROJECTILE_RADIUS = 4;
 const EXPLOSION_VISUAL_RADIUS = 60;
@@ -50,7 +51,7 @@ export class Projectile {
       restitution: 0.3,
     });
 
-    Matter.Body.setVelocity(this.body as unknown as Matter.Body, {
+    Matter.Body.setVelocity(toMatterBody(this.body), {
       x: vx,
       y: vy,
     });
@@ -153,7 +154,7 @@ export class Projectile {
     };
 
     Matter.Events.on(
-      this.#scene.matter.world.engine as unknown as Matter.Engine,
+      toMatterEngine(this.#scene.matter.world.engine),
       "collisionStart",
       this.#collisionHandler,
     );
@@ -162,7 +163,7 @@ export class Projectile {
   #tearDownCollisions(): void {
     if (!this.#collisionHandler) return;
     Matter.Events.off(
-      this.#scene.matter.world.engine as unknown as Matter.Engine,
+      toMatterEngine(this.#scene.matter.world.engine),
       "collisionStart",
       this.#collisionHandler,
     );

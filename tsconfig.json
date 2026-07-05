@@ -1,6 +1,7 @@
 {
   "extends": "@tsconfig/strictest/tsconfig.json",
   "compilerOptions": {
+    "noUncheckedIndexedAccess": true,
     "lib": ["ESNext", "DOM"],
     "module": "esnext",
     "target": "esnext",

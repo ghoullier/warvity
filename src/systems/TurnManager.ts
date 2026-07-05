@@ -30,8 +30,7 @@ export class TurnManager extends Phaser.Events.EventEmitter {
   }
 
   get currentWormIndex(): number {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return this.#teamWormIndices[this.#currentTeamIndex]!;
+    return this.#teamWormIndices[this.#currentTeamIndex] ?? 0;
   }
 
   constructor(teams: Character[][]) {
@@ -54,10 +53,14 @@ export class TurnManager extends Phaser.Events.EventEmitter {
   /** Returns the worm whose turn it currently is. */
   getCurrentWorm(): Character {
     // Constructor validates both arrays are non-empty and indices stay in-bounds.
-    // biome-ignore lint/style/noNonNullAssertion: invariant enforced by constructor
-    return this.#teams[this.#currentTeamIndex]![
-      this.#teamWormIndices[this.#currentTeamIndex]!
-    ]!;
+    const team = this.#teams[this.#currentTeamIndex];
+    const wormIdx = this.#teamWormIndices[this.#currentTeamIndex] ?? 0;
+    const worm = team?.[wormIdx];
+    if (!worm)
+      throw new Error(
+        "TurnManager: internal state corrupted — no current worm",
+      );
+    return worm;
   }
 
   /** Returns the index of the team currently taking their turn. */
@@ -118,9 +121,8 @@ export class TurnManager extends Phaser.Events.EventEmitter {
     // Advance this team's worm pointer for when they play again
     // biome-ignore lint/style/noNonNullAssertion: invariant enforced by constructor
     const team = this.#teams[this.#currentTeamIndex]!;
-    // biome-ignore lint/style/noNonNullAssertion: invariant enforced by constructor
     this.#teamWormIndices[this.#currentTeamIndex] =
-      (this.#teamWormIndices[this.#currentTeamIndex]! + 1) % team.length;
+      ((this.#teamWormIndices[this.#currentTeamIndex] ?? 0) + 1) % team.length;
 
     // Move to the next team
     this.#currentTeamIndex = (this.#currentTeamIndex + 1) % this.#teams.length;

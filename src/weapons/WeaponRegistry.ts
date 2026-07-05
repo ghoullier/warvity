@@ -53,6 +53,9 @@ export interface WeaponDefinition {
   onReset?(): void;
 }
 
+/** Semantic type alias for weapon identifier strings. */
+export type WeaponId = string;
+
 const WEAPONS: WeaponDefinition[] = [];
 
 export function registerWeapon(def: WeaponDefinition): void {

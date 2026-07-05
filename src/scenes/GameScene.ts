@@ -7,6 +7,7 @@ import {
 } from "../config";
 import { DEFAULT_PLANET_STYLE, type PlanetStyle } from "../config/PlanetStyles";
 import { Character } from "../entities/Character";
+import { GravityBoost } from "../entities/GravityBoost";
 import { Teleporter } from "../entities/Teleporter";
 import { AimingSystem } from "../systems/AimingSystem";
 import { AudioManager } from "../systems/AudioManager";
@@ -325,6 +326,16 @@ export class GameScene extends Phaser.Scene {
 
     // Sync visuals for all characters across all teams
     for (const worm of this.#allCharacters) worm.update();
+  }
+
+  override shutdown(): void {
+    this.#audioManager?.stopMusic();
+    this.events.removeAllListeners();
+    this.input.keyboard?.removeAllListeners();
+    this.#terrain?.destroy();
+    resetAllWeapons();
+    GravityBoost.resetModeIndex();
+    super.shutdown();
   }
 
   // ──────────────────────────────── private helpers ─────────────────────────────

@@ -74,6 +74,7 @@ export class TurnManager extends Phaser.Events.EventEmitter {
       delay: 1000,
       repeat: TURN_DURATION_SECONDS - 1,
       callback: () => {
+        if (this.#stopped) return;
         this.#remainingSeconds -= 1;
         this.emit("timer-tick", this.#remainingSeconds);
         if (this.#remainingSeconds <= 0) {

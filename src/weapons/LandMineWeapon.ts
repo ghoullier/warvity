@@ -61,6 +61,7 @@ registerWeapon({
   },
 
   onReset(): void {
+    for (const mine of mines) mine.destroy();
     mines.length = 0;
   },
 });

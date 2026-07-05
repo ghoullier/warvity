@@ -147,7 +147,8 @@ export class UIScene extends Phaser.Scene {
           | "gravity-boost"
           | "flamethrower"
           | "shield"
-          | "jetpack",
+          | "jetpack"
+          | "mine",
       ) => this.#applyWeaponChange(weapon),
       this,
     );
@@ -296,7 +297,8 @@ export class UIScene extends Phaser.Scene {
       | "gravity-boost"
       | "flamethrower"
       | "shield"
-      | "jetpack",
+      | "jetpack"
+      | "mine",
   ): void {
     const labels: Record<typeof weapon, string> = {
       bazooka: "🚀  Bazooka",
@@ -308,6 +310,7 @@ export class UIScene extends Phaser.Scene {
       flamethrower: "🔥  Flamethrower",
       shield: "🛡️  Shield",
       jetpack: "🚀  Jetpack",
+      mine: "💣  Mine",
     };
     this.#weaponText.setText(labels[weapon]);
   }

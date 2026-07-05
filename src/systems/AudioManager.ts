@@ -418,6 +418,74 @@ export class AudioManager {
     return this.#muted;
   }
 
+  /** Soft click: mine has been placed on the terrain. */
+  playMinePlaced(): void {
+    if (this.#muted) return;
+    const duration = 0.08;
+    const now = this.#ctx.currentTime;
+    const osc = this.#ctx.createOscillator();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.linearRampToValueAtTime(400, now + duration);
+    const gain = this.#ctx.createGain();
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.linearRampToValueAtTime(0, now + duration);
+    osc.connect(gain);
+    gain.connect(this.#master);
+    osc.start(now);
+    osc.stop(now + duration);
+  }
+
+  /** Short high-pitched beep: mine is detecting a nearby worm. */
+  playMineBeep(): void {
+    if (this.#muted) return;
+    const duration = 0.05;
+    const now = this.#ctx.currentTime;
+    const osc = this.#ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = 1200;
+    const gain = this.#ctx.createGain();
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.linearRampToValueAtTime(0, now + duration);
+    osc.connect(gain);
+    gain.connect(this.#master);
+    osc.start(now);
+    osc.stop(now + duration);
+  }
+
+  /** Sharper explosion (mine detonation — higher frequencies than a regular blast). */
+  playMineExplosion(): void {
+    if (this.#muted) return;
+    const duration = 0.25;
+    const bufferSize = Math.ceil(this.#ctx.sampleRate * duration);
+    const buffer = this.#ctx.createBuffer(1, bufferSize, this.#ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    const source = this.#ctx.createBufferSource();
+    source.buffer = buffer;
+
+    // Bandpass filter for a sharper crack
+    const filter = this.#ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 1200;
+    filter.Q.value = 0.5;
+
+    const gain = this.#ctx.createGain();
+    const now = this.#ctx.currentTime;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(1.0, now + 0.01);
+    gain.gain.linearRampToValueAtTime(0.5, now + 0.05);
+    gain.gain.linearRampToValueAtTime(0, now + duration);
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.#master);
+    source.start(now);
+    source.stop(now + duration);
+  }
+
   // ──────────────────────────────── private helpers ─────────────────────────────
 
   #scheduleNextNote(): void {

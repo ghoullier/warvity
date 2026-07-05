@@ -73,9 +73,11 @@ export class GameScene extends Phaser.Scene {
     | "gravity-boost"
     | "flamethrower"
     | "shield"
-    | "jetpack" = "bazooka";
+    | "jetpack"
+    | "mine" = "bazooka";
   #activeFlamethrower: Flamethrower | null = null;
   #activeJetpack: Jetpack | null = null;
+  #mines: LandMine[] = [];
   #gravityMultiplier = 1;
   #activeGravityBoost: GravityBoost | null = null;
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
@@ -137,7 +139,8 @@ export class GameScene extends Phaser.Scene {
     | "gravity-boost"
     | "flamethrower"
     | "shield"
-    | "jetpack" {
+    | "jetpack"
+    | "mine" {
     return this.#activeWeapon;
   }
 
@@ -227,6 +230,8 @@ export class GameScene extends Phaser.Scene {
         } else if (this.#activeWeapon === "jetpack") {
           this.#activateJetpack();
           // Turn advances after 3-second flight (handled via 'jetpack-end' event)
+        } else if (this.#activeWeapon === "mine") {
+          this.#placeMine(worm);
         } else if (this.#activeWeapon === "grenade") {
           this.#fireGrenade(angle, power, worm);
           // Grenade: turn advances on explosion (see 'grenade-exploded')
@@ -253,6 +258,34 @@ export class GameScene extends Phaser.Scene {
       this.#activeJetpack = null;
       this.#turnManager.nextTurn();
       this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+    });
+
+    // When a mine detonates: destroy terrain, apply damage, advance turn
+    this.events.on("mine-exploded", ({ x, y }: { x: number; y: number }) => {
+      this.#audioManager.playMineExplosion();
+      this.#terrain.explode(x, y, MINE_EXPLOSION_RADIUS);
+      ParticleSystem.explode(this, x, y, PLANET_CENTER);
+      ParticleSystem.debris(this, x, y, PLANET_CENTER);
+
+      for (const worm of this.#allCharacters) {
+        if (!worm.isAlive()) continue;
+        const dx = worm.body.position.x - x;
+        const dy = worm.body.position.y - y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < MINE_EXPLOSION_RADIUS) {
+          const damage =
+            MINE_EXPLOSION_DAMAGE * (1 - dist / MINE_EXPLOSION_RADIUS);
+          worm.takeDamage(damage);
+        }
+      }
+
+      this.#turnManager.nextTurn();
+      this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+    });
+
+    // Mine proximity beep — audio only, mine handles visual blink
+    this.events.on("mine-beep", () => {
+      this.#audioManager.playMineBeep();
     });
 
     this.events.on("flamethrower-done", () => {
@@ -397,7 +430,7 @@ export class GameScene extends Phaser.Scene {
         "teleporter",
         "gravity-boost",
         "flamethrower",
-        "jetpack",
+        "mine",
       ] as const;
       const idx = weapons.indexOf(this.#activeWeapon);
       // biome-ignore lint/style/noNonNullAssertion: modulo guarantees in-bounds index
@@ -512,6 +545,10 @@ export class GameScene extends Phaser.Scene {
         active.jump();
         this.#audioManager.playJump();
       }
+    }
+
+    for (const mine of this.#mines) {
+      mine.update(this.#allCharacters);
     }
 
     // Aiming system handles ← → for rotation and Space for charge/fire
@@ -672,6 +709,15 @@ export class GameScene extends Phaser.Scene {
     );
     this.#activeJetpack = jetpack;
     jetpack.activate();
+  }
+
+  #placeMine(character: Character): void {
+    const cx = character.body.position.x;
+    const cy = character.body.position.y;
+    this.#mines.push(new LandMine(this, cx, cy));
+    this.#audioManager.playMinePlaced();
+    this.#turnManager.nextTurn();
+    this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
   }
 
   #addStars(): void {

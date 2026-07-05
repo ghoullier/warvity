@@ -7,13 +7,13 @@ import {
 } from "../config";
 import { DEFAULT_PLANET_STYLE, type PlanetStyle } from "../config/PlanetStyles";
 import { Character } from "../entities/Character";
-import { Flamethrower } from "../entities/Flamethrower";
 import {
   ClusterBomb,
   MAX_CLUSTER_SPEED,
   MAX_SUB_DAMAGE,
   SUB_EXPLOSION_RADIUS,
 } from "../entities/ClusterBomb";
+import { Flamethrower } from "../entities/Flamethrower";
 import { GravityBoost } from "../entities/GravityBoost";
 import { Grenade, MAX_GRENADE_SPEED } from "../entities/Grenade";
 import { Projectile } from "../entities/Projectile";

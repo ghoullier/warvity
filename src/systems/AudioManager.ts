@@ -221,6 +221,8 @@ export class AudioManager {
     gain.connect(this.#master);
     source.start(now);
     source.stop(now + duration);
+  }
+
   /** Rising hum-chime: 300→900 Hz over 0.5 s (shield activation). */
   playShieldActivate(): void {
     if (this.#muted) return;

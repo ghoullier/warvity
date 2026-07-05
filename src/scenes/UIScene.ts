@@ -144,7 +144,7 @@ export class UIScene extends Phaser.Scene {
           | "teleporter"
           | "singularity"
           | "gravity-boost"
-          | "flamethrower",
+          | "flamethrower"
           | "shield",
       ) => this.#applyWeaponChange(weapon),
       this,
@@ -283,7 +283,7 @@ export class UIScene extends Phaser.Scene {
       | "teleporter"
       | "singularity"
       | "gravity-boost"
-      | "flamethrower",
+      | "flamethrower"
       | "shield",
   ): void {
     const labels: Record<typeof weapon, string> = {

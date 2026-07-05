@@ -7,34 +7,21 @@ import {
 } from "../config";
 import { DEFAULT_PLANET_STYLE, type PlanetStyle } from "../config/PlanetStyles";
 import { Character } from "../entities/Character";
-import {
-  ClusterBomb,
-  MAX_CLUSTER_SPEED,
-  MAX_SUB_DAMAGE,
-  SUB_EXPLOSION_RADIUS,
-} from "../entities/ClusterBomb";
-import { Flamethrower } from "../entities/Flamethrower";
-import { GravityBoost } from "../entities/GravityBoost";
-import { Grenade, MAX_GRENADE_SPEED } from "../entities/Grenade";
-import { Projectile } from "../entities/Projectile";
-import { Singularity } from "../entities/Singularity";
 import { Teleporter } from "../entities/Teleporter";
 import { AimingSystem } from "../systems/AimingSystem";
 import { AudioManager } from "../systems/AudioManager";
 import { CameraController } from "../systems/CameraController";
 import { applyRadialGravity } from "../systems/GravitySystem";
-import * as ParticleSystem from "../systems/ParticleSystem";
 import { TerrainManager } from "../systems/TerrainManager";
 import { TurnManager } from "../systems/TurnManager";
-
-const FIRE_OFFSET = 40; // px from character centre before spawning projectile
-const MAX_FIRE_SPEED = 15;
-const EXPLOSION_RADIUS = 60;
-const MAX_EXPLOSION_DAMAGE = 50;
-const GRENADE_EXPLOSION_RADIUS = 50;
-const MAX_GRENADE_DAMAGE = 40;
-const SINGULARITY_EXPLOSION_RADIUS = 80;
-const MAX_SINGULARITY_DAMAGE = 60;
+import "../weapons/index";
+import {
+  getWeapon,
+  getWeapons,
+  resetAllWeapons,
+  setupWeaponListeners,
+  type WeaponContext,
+} from "../weapons/WeaponRegistry";
 
 const TEAM_COLORS = [0xff6b35, 0x35aaff, 0x35ff6b, 0xff35aa] as const;
 const TEAM_NAMES = ["Team A", "Team B", "Team C", "Team D"] as const;
@@ -50,7 +37,7 @@ const TEAM_NAMES = ["Team A", "Team B", "Team C", "Team D"] as const;
  *   Arrow Up            — jump
  *   Space (hold/release)— charge and fire projectile
  *   Tab                 — end current turn (advance to next worm / team)
- *   Q                   — cycle weapons: Bazooka → Grenade → Gravity Boost → …
+ *   Q                   — cycle weapons through the registered list
  */
 export class GameScene extends Phaser.Scene {
   #terrain!: TerrainManager;
@@ -60,26 +47,8 @@ export class GameScene extends Phaser.Scene {
   #teleporter!: Teleporter;
   #allCharacters: Character[] = [];
   #teams: Array<{ name: string; worms: Character[] }> = [];
-  #projectiles: Projectile[] = [];
-  #grenades: Grenade[] = [];
-  #clusterBombs: ClusterBomb[] = [];
-  #singularities: Singularity[] = [];
-  #activeWeapon:
-    | "bazooka"
-    | "grenade"
-    | "cluster-bomb"
-    | "teleporter"
-    | "singularity"
-    | "gravity-boost"
-    | "flamethrower"
-    | "shield"
-    | "jetpack"
-    | "mine" = "bazooka";
-  #activeFlamethrower: Flamethrower | null = null;
-  #activeJetpack: Jetpack | null = null;
-  #mines: LandMine[] = [];
+  #activeWeapon = "bazooka";
   #gravityMultiplier = 1;
-  #activeGravityBoost: GravityBoost | null = null;
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   #cameraController!: CameraController;
   #config = { teams: 2, wormsPerTeam: 1 };
@@ -104,12 +73,8 @@ export class GameScene extends Phaser.Scene {
     // Reset mutable state so the scene can be restarted cleanly
     this.#allCharacters = [];
     this.#teams = [];
-    this.#projectiles = [];
-    this.#grenades = [];
-    this.#clusterBombs = [];
-    this.#singularities = [];
     this.#activeWeapon = "bazooka";
-    this.#activeFlamethrower = null;
+    resetAllWeapons();
   }
 
   // ──────────────────────────────── public getters ──────────────────────────────
@@ -130,17 +95,7 @@ export class GameScene extends Phaser.Scene {
     return this.#turnManager.getRemainingTime();
   }
 
-  get activeWeapon():
-    | "bazooka"
-    | "grenade"
-    | "cluster-bomb"
-    | "teleporter"
-    | "singularity"
-    | "gravity-boost"
-    | "flamethrower"
-    | "shield"
-    | "jetpack"
-    | "mine" {
+  get activeWeapon(): string {
     return this.#activeWeapon;
   }
 
@@ -212,6 +167,7 @@ export class GameScene extends Phaser.Scene {
       this.events.emit("turn-start", worm, teamName);
     });
 
+    // AimingSystem fire event → dispatch to the active weapon
     this.events.on(
       "fire",
       ({
@@ -224,123 +180,10 @@ export class GameScene extends Phaser.Scene {
         worm: Character;
       }) => {
         this.#audioManager.playFire();
-        if (this.#activeWeapon === "gravity-boost") {
-          this.#activateGravityBoost();
-          // Turn advances after the 5-second boost (handled inside GravityBoost)
-        } else if (this.#activeWeapon === "jetpack") {
-          this.#activateJetpack();
-          // Turn advances after 3-second flight (handled via 'jetpack-end' event)
-        } else if (this.#activeWeapon === "mine") {
-          this.#placeMine(worm);
-        } else if (this.#activeWeapon === "grenade") {
-          this.#fireGrenade(angle, power, worm);
-          // Grenade: turn advances on explosion (see 'grenade-exploded')
-        } else if (this.#activeWeapon === "cluster-bomb") {
-          this.#fireClusterBomb(angle, power, worm);
-          // Cluster bomb: turn advances when all sub-munitions explode (see 'cluster-exploded')
-        } else if (this.#activeWeapon === "singularity") {
-          this.#fireSingularity(angle, power, worm);
-          // Singularity: turn advances on explosion (see 'singularity-exploded')
-        } else if (this.#activeWeapon === "flamethrower") {
-          this.#audioManager.playFlamethrower();
-          this.#fireFlamethrower(angle, worm);
-          // Flamethrower: turn advances when all particles settle (see 'flamethrower-done')
-        } else {
-          this.#fireProjectile(angle, power, worm);
-          // Bazooka: turn advances once the projectile explodes (see 'projectile-exploded')
-        }
+        const ctx = this.#buildCtx(worm, angle, power, 0);
+        getWeapon(this.#activeWeapon)?.fire(ctx);
       },
     );
-
-    // When all flamethrower particles have finished: advance turn
-    // When jetpack flight ends: advance turn
-    this.events.on("jetpack-end", () => {
-      this.#activeJetpack = null;
-      this.#turnManager.nextTurn();
-      this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
-    });
-
-    // When a mine detonates: destroy terrain, apply damage, advance turn
-    this.events.on("mine-exploded", ({ x, y }: { x: number; y: number }) => {
-      this.#audioManager.playMineExplosion();
-      this.#terrain.explode(x, y, MINE_EXPLOSION_RADIUS);
-      ParticleSystem.explode(this, x, y, PLANET_CENTER);
-      ParticleSystem.debris(this, x, y, PLANET_CENTER);
-
-      for (const worm of this.#allCharacters) {
-        if (!worm.isAlive()) continue;
-        const dx = worm.body.position.x - x;
-        const dy = worm.body.position.y - y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < MINE_EXPLOSION_RADIUS) {
-          const damage =
-            MINE_EXPLOSION_DAMAGE * (1 - dist / MINE_EXPLOSION_RADIUS);
-          worm.takeDamage(damage);
-        }
-      }
-
-      this.#turnManager.nextTurn();
-      this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
-    });
-
-    // Mine proximity beep — audio only, mine handles visual blink
-    this.events.on("mine-beep", () => {
-      this.#audioManager.playMineBeep();
-    });
-
-    this.events.on("flamethrower-done", () => {
-      this.#activeFlamethrower = null;
-      this.#turnManager.nextTurn();
-      this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
-    });
-
-    // When the projectile detonates: destroy terrain, apply damage, advance turn
-    this.events.on(
-      "projectile-exploded",
-      ({ x, y }: { x: number; y: number }) => {
-        this.#audioManager.playExplosion();
-        this.#terrain.explode(x, y, EXPLOSION_RADIUS);
-        ParticleSystem.explode(this, x, y, PLANET_CENTER);
-        ParticleSystem.debris(this, x, y, PLANET_CENTER);
-
-        for (const worm of this.#allCharacters) {
-          if (!worm.isAlive()) continue;
-          const dx = worm.body.position.x - x;
-          const dy = worm.body.position.y - y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < EXPLOSION_RADIUS) {
-            const damage = MAX_EXPLOSION_DAMAGE * (1 - dist / EXPLOSION_RADIUS);
-            worm.takeDamage(damage);
-          }
-        }
-
-        this.#turnManager.nextTurn();
-        this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
-      },
-    );
-
-    // When the grenade detonates: destroy terrain, apply damage, advance turn
-    this.events.on("grenade-exploded", ({ x, y }: { x: number; y: number }) => {
-      this.#audioManager.playExplosion();
-      this.#terrain.explode(x, y, GRENADE_EXPLOSION_RADIUS);
-      ParticleSystem.explode(this, x, y, PLANET_CENTER);
-      ParticleSystem.debris(this, x, y, PLANET_CENTER);
-
-      for (const worm of this.#allCharacters) {
-        if (!worm.isAlive()) continue;
-        const dx = worm.body.position.x - x;
-        const dy = worm.body.position.y - y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < GRENADE_EXPLOSION_RADIUS) {
-          const damage =
-            MAX_GRENADE_DAMAGE * (1 - dist / GRENADE_EXPLOSION_RADIUS);
-          worm.takeDamage(damage);
-        }
-      }
-
-      this.#turnManager.nextTurn();
-      this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
-    });
 
     // When a teleport completes: advance the turn
     this.events.on("teleport-complete", () => {
@@ -348,64 +191,10 @@ export class GameScene extends Phaser.Scene {
       this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
     });
 
-    // When the singularity detonates: destroy terrain, apply damage, advance turn
-    this.events.on(
-      "singularity-exploded",
-      ({ x, y }: { x: number; y: number }) => {
-        this.#audioManager.playExplosion();
-        this.#terrain.explode(x, y, SINGULARITY_EXPLOSION_RADIUS);
-        ParticleSystem.explode(this, x, y, PLANET_CENTER);
-        ParticleSystem.debris(this, x, y, PLANET_CENTER);
-
-        for (const worm of this.#allCharacters) {
-          if (!worm.isAlive()) continue;
-          const dx = worm.body.position.x - x;
-          const dy = worm.body.position.y - y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < SINGULARITY_EXPLOSION_RADIUS) {
-            const damage =
-              MAX_SINGULARITY_DAMAGE *
-              (1 - dist / SINGULARITY_EXPLOSION_RADIUS);
-            worm.takeDamage(damage);
-          }
-        }
-
-        this.#turnManager.nextTurn();
-        this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
-      },
+    // Install persistent scene-event listeners declared by weapon definitions (e.g. mines)
+    setupWeaponListeners(this, () =>
+      this.#buildCtx(this.#turnManager.getCurrentWorm(), 0, 0, 0),
     );
-
-    // When the cluster bomb splits: play the split sound
-    this.events.on("cluster-split", () => {
-      this.#audioManager.playClusterSplit();
-    });
-
-    // When a sub-munition detonates: destroy terrain, apply damage, play sound
-    this.events.on(
-      "sub-munition-exploded",
-      ({ x, y }: { x: number; y: number }) => {
-        this.#audioManager.playSubExplosion();
-        this.#terrain.explode(x, y, SUB_EXPLOSION_RADIUS);
-        ParticleSystem.explode(this, x, y, PLANET_CENTER);
-
-        for (const worm of this.#allCharacters) {
-          if (!worm.isAlive()) continue;
-          const dx = worm.body.position.x - x;
-          const dy = worm.body.position.y - y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < SUB_EXPLOSION_RADIUS) {
-            const damage = MAX_SUB_DAMAGE * (1 - dist / SUB_EXPLOSION_RADIUS);
-            worm.takeDamage(damage);
-          }
-        }
-      },
-    );
-
-    // When all sub-munitions have exploded: advance turn
-    this.events.on("cluster-exploded", () => {
-      this.#turnManager.nextTurn();
-      this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
-    });
 
     // Log the initial worm and activate aiming on it
     const first = this.#turnManager.getCurrentWorm();
@@ -423,18 +212,10 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.input.keyboard?.on("keydown-Q", () => {
-      const weapons = [
-        "bazooka",
-        "grenade",
-        "singularity",
-        "teleporter",
-        "gravity-boost",
-        "flamethrower",
-        "mine",
-      ] as const;
-      const idx = weapons.indexOf(this.#activeWeapon);
-      // biome-ignore lint/style/noNonNullAssertion: modulo guarantees in-bounds index
-      this.#activeWeapon = weapons[(idx + 1) % weapons.length]!;
+      const weapons = getWeapons();
+      const ids = weapons.map((w) => w.id);
+      const idx = ids.indexOf(this.#activeWeapon);
+      this.#activeWeapon = ids[(idx + 1) % ids.length] ?? "bazooka";
       this.events.emit("weapon-changed", this.#activeWeapon);
       this.#activateCurrentWeapon(this.#turnManager.getCurrentWorm());
     });
@@ -450,21 +231,19 @@ export class GameScene extends Phaser.Scene {
     this.#activateCurrentWeapon(first);
     this.#turnManager.startTimer(this);
 
-    // Click to trigger teleportation when teleporter is the active weapon
+    // Pointer-mode weapons (e.g. Teleporter) fire on mouse click
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      if (this.#activeWeapon === "teleporter") {
+      if ((getWeapon(this.#activeWeapon)?.inputMode ?? "aim") === "pointer") {
         this.#teleporter.handleClick(pointer.worldX, pointer.worldY);
       }
     });
 
-    // Space key activates the shield when that weapon is selected
+    // Space-mode weapons (e.g. Shield) fire on bare Space key press
     this.input.keyboard?.on("keydown-SPACE", () => {
-      if (this.#activeWeapon === "shield") {
+      if ((getWeapon(this.#activeWeapon)?.inputMode ?? "aim") === "space") {
         const worm = this.#turnManager.getCurrentWorm();
-        worm.activateShield();
-        this.#audioManager.playShieldActivate();
-        this.#turnManager.nextTurn();
-        this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+        const ctx = this.#buildCtx(worm, 0, 0, 0);
+        getWeapon(this.#activeWeapon)?.fire(ctx);
       }
     });
 
@@ -480,10 +259,7 @@ export class GameScene extends Phaser.Scene {
           const winner = this.#teams.find(
             (t) => t !== team && t.worms.some((c) => c.isAlive()),
           );
-          this.#activeGravityBoost?.cancel();
-          this.#activeGravityBoost = null;
-          this.#activeJetpack?.deactivate();
-          this.#activeJetpack = null;
+          resetAllWeapons();
           this.#turnManager.stop();
           if (winner) {
             this.scene.launch("GameOver", { winner: winner.name });
@@ -513,7 +289,7 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch("UIScene");
   }
 
-  override update(_time: number, _delta: number): void {
+  override update(_time: number, delta: number): void {
     // Radial gravity for all dynamic bodies (multiplier modified by GravityBoost)
     const bodies = this.matter.world.getAllBodies();
     applyRadialGravity(
@@ -523,22 +299,8 @@ export class GameScene extends Phaser.Scene {
       this.#gravityMultiplier,
     );
 
-    // Character movement — only the active worm responds (← → now rotate aim, ↑ still jumps)
+    // Character movement — only the active worm responds (← → rotate aim, ↑ jump)
     const active = this.#turnManager.getCurrentWorm();
-
-    const jetpackActive = this.#activeJetpack?.isActive() ?? false;
-
-    if (jetpackActive) {
-      // Partially cancel gravity for the worm: net = 0.2 (cancel 80%)
-      applyRadialGravity(
-        [active.body],
-        PLANET_CENTER,
-        GRAVITY_STRENGTH,
-        this.#gravityMultiplier * -0.8,
-      );
-      // biome-ignore lint/style/noNonNullAssertion: guarded by jetpackActive check
-      this.#activeJetpack!.update(this.#cursors);
-    }
 
     if (active?.isAlive() && this.#cursors) {
       if (Phaser.Input.Keyboard.JustDown(this.#cursors.up)) {
@@ -547,177 +309,77 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    for (const mine of this.#mines) {
-      mine.update(this.#allCharacters);
+    // Per-frame update for all weapons (handles in-flight entities, mines, jetpack, etc.)
+    const ctx = this.#buildCtx(active, 0, 0, delta);
+    for (const weapon of getWeapons()) {
+      weapon.update?.(ctx);
     }
 
     // Aiming system handles ← → for rotation and Space for charge/fire
     this.#aimingSystem.update();
 
-    // Update teleporter cursor when active
-    this.#teleporter.update(this.input.activePointer);
+    // Update teleporter cursor when active (pointer-mode weapon)
+    if ((getWeapon(this.#activeWeapon)?.inputMode ?? "aim") === "pointer") {
+      this.#teleporter.update(this.input.activePointer);
+    }
 
     // Sync visuals for all characters across all teams
     for (const worm of this.#allCharacters) worm.update();
-
-    // Update projectiles and discard detonated ones
-    for (const p of this.#projectiles) p.update();
-    this.#projectiles = this.#projectiles.filter((p) => p.isActive());
-
-    // Update grenades and discard inactive ones
-    for (const g of this.#grenades) g.update();
-    this.#grenades = this.#grenades.filter((g) => g.isActive());
-
-    // Update cluster bombs and discard inactive ones
-    for (const c of this.#clusterBombs) c.update();
-    this.#clusterBombs = this.#clusterBombs.filter((c) => c.isActive());
-
-    // Update singularities and discard inactive ones
-    for (const s of this.#singularities) s.update();
-    this.#singularities = this.#singularities.filter((s) => s.isActive());
-
-    // Update active flamethrower particles
-    if (this.#activeFlamethrower) {
-      this.#activeFlamethrower.update(_delta);
-    }
   }
 
   // ──────────────────────────────── private helpers ─────────────────────────────
 
-  /** Activate the appropriate weapon UI for `worm` based on `#activeWeapon`. */
-  #activateCurrentWeapon(worm: Character): void {
-    if (this.#activeWeapon === "teleporter") {
-      this.#aimingSystem.deactivate();
-      this.#teleporter.activate(worm);
-    } else if (this.#activeWeapon === "shield") {
-      this.#teleporter.deactivate();
-      this.#aimingSystem.deactivate();
-    } else {
-      this.#teleporter.deactivate();
-      this.#aimingSystem.activate(worm);
-    }
-  }
-
-  #activateGravityBoost(): void {
-    if (this.#activeGravityBoost?.isActive()) return;
-    this.#turnManager.stopTimer();
-    const boost = new GravityBoost(
-      this,
-      (m) => {
-        this.#gravityMultiplier = m;
-      },
-      () => {
-        this.#activeGravityBoost = null;
+  /** Build a WeaponContext snapshot for the given frame/interaction. */
+  #buildCtx(
+    worm: Character,
+    angle: number,
+    power: number,
+    delta: number,
+  ): WeaponContext {
+    return {
+      scene: this,
+      worm,
+      angle,
+      power,
+      delta,
+      terrain: this.#terrain,
+      allWorms: this.#allCharacters,
+      audioManager: this.#audioManager,
+      gravityMultiplier: this.#gravityMultiplier,
+      cameraController: this.#cameraController,
+      nextTurn: () => {
         this.#turnManager.nextTurn();
         this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
       },
-    );
-    this.#activeGravityBoost = boost;
-    boost.activate();
+      returnCamera: () => {
+        this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+      },
+      setGravityMultiplier: (m: number) => {
+        this.#gravityMultiplier = m;
+      },
+      stopTimer: () => {
+        this.#turnManager.stopTimer();
+      },
+      deactivateAiming: () => {
+        this.#aimingSystem.deactivate();
+      },
+    };
   }
 
-  #fireProjectile(angle: number, power: number, character: Character): void {
-    const cx = character.body.position.x;
-    const cy = character.body.position.y;
-    const speed = power * MAX_FIRE_SPEED;
-
-    this.#projectiles.push(
-      new Projectile(
-        this,
-        cx + Math.cos(angle) * FIRE_OFFSET,
-        cy + Math.sin(angle) * FIRE_OFFSET,
-        Math.cos(angle) * speed,
-        Math.sin(angle) * speed,
-        this.#terrain,
-        this.#cameraController,
-      ),
-    );
-  }
-
-  #fireGrenade(angle: number, power: number, character: Character): void {
-    const cx = character.body.position.x;
-    const cy = character.body.position.y;
-    const speed = power * MAX_GRENADE_SPEED;
-
-    this.#grenades.push(
-      new Grenade(
-        this,
-        cx + Math.cos(angle) * FIRE_OFFSET,
-        cy + Math.sin(angle) * FIRE_OFFSET,
-        Math.cos(angle) * speed,
-        Math.sin(angle) * speed,
-      ),
-    );
-  }
-
-  #fireSingularity(angle: number, power: number, character: Character): void {
-    const cx = character.body.position.x;
-    const cy = character.body.position.y;
-    const speed = power * MAX_FIRE_SPEED;
-
-    this.#singularities.push(
-      new Singularity(
-        this,
-        cx + Math.cos(angle) * FIRE_OFFSET,
-        cy + Math.sin(angle) * FIRE_OFFSET,
-        Math.cos(angle) * speed,
-        Math.sin(angle) * speed,
-      ),
-    );
-  }
-
-  #fireFlamethrower(angle: number, character: Character): void {
-    const cx = character.body.position.x;
-    const cy = character.body.position.y;
-
-    this.#activeFlamethrower = new Flamethrower(
-      this,
-      cx + Math.cos(angle) * FIRE_OFFSET,
-      cy + Math.sin(angle) * FIRE_OFFSET,
-      angle,
-      this.#terrain,
-      this.#allCharacters,
-    );
-    this.#activeFlamethrower.start();
-    this.#audioManager.playFlamethrower();
-  }
-
-  #fireClusterBomb(angle: number, power: number, character: Character): void {
-    const cx = character.body.position.x;
-    const cy = character.body.position.y;
-    const speed = power * MAX_CLUSTER_SPEED;
-
-    this.#clusterBombs.push(
-      new ClusterBomb(
-        this,
-        cx + Math.cos(angle) * FIRE_OFFSET,
-        cy + Math.sin(angle) * FIRE_OFFSET,
-        Math.cos(angle) * speed,
-        Math.sin(angle) * speed,
-      ),
-    );
-  }
-
-  #activateJetpack(): void {
-    if (this.#activeJetpack?.isActive()) return;
-    this.#turnManager.stopTimer();
-    this.#aimingSystem.deactivate();
-    const jetpack = new Jetpack(
-      this,
-      this.#turnManager.getCurrentWorm(),
-      this.#audioManager,
-    );
-    this.#activeJetpack = jetpack;
-    jetpack.activate();
-  }
-
-  #placeMine(character: Character): void {
-    const cx = character.body.position.x;
-    const cy = character.body.position.y;
-    this.#mines.push(new LandMine(this, cx, cy));
-    this.#audioManager.playMinePlaced();
-    this.#turnManager.nextTurn();
-    this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+  /** Activate input and visuals for the current weapon on `worm`. */
+  #activateCurrentWeapon(worm: Character): void {
+    const inputMode = getWeapon(this.#activeWeapon)?.inputMode ?? "aim";
+    if (inputMode === "pointer") {
+      this.#aimingSystem.deactivate();
+      this.#teleporter.activate(worm);
+    } else {
+      this.#teleporter.deactivate();
+      if (inputMode === "aim") {
+        this.#aimingSystem.activate(worm);
+      } else {
+        this.#aimingSystem.deactivate();
+      }
+    }
   }
 
   #addStars(): void {

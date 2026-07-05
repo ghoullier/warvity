@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { CANVAS_SIZE } from "../config";
 import type { Character } from "../entities/Character";
 import type { AudioManager } from "../systems/AudioManager";
+import { getWeapon } from "../weapons/WeaponRegistry";
 import type { GameScene } from "./GameScene";
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -137,19 +138,7 @@ export class UIScene extends Phaser.Scene {
     ge.on("worm-died", (worm: Character) => this.#refreshHpFill(worm), this);
     ge.on(
       "weapon-changed",
-      (
-        weapon:
-          | "bazooka"
-          | "grenade"
-          | "cluster-bomb"
-          | "teleporter"
-          | "singularity"
-          | "gravity-boost"
-          | "flamethrower"
-          | "shield"
-          | "jetpack"
-          | "mine",
-      ) => this.#applyWeaponChange(weapon),
+      (weapon: string) => this.#applyWeaponChange(weapon),
       this,
     );
     ge.on(
@@ -287,32 +276,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   /** Update the active weapon display. */
-  #applyWeaponChange(
-    weapon:
-      | "bazooka"
-      | "grenade"
-      | "cluster-bomb"
-      | "teleporter"
-      | "singularity"
-      | "gravity-boost"
-      | "flamethrower"
-      | "shield"
-      | "jetpack"
-      | "mine",
-  ): void {
-    const labels: Record<typeof weapon, string> = {
-      bazooka: "🚀  Bazooka",
-      grenade: "💣  Grenade",
-      "cluster-bomb": "🌟  Cluster Bomb",
-      teleporter: "🌀  Teleporter",
-      singularity: "🕳️  Singularity",
-      "gravity-boost": "🪐  Gravity Boost",
-      flamethrower: "🔥  Flamethrower",
-      shield: "🛡️  Shield",
-      jetpack: "🚀  Jetpack",
-      mine: "💣  Mine",
-    };
-    this.#weaponText.setText(labels[weapon]);
+  #applyWeaponChange(weapon: string): void {
+    this.#weaponText.setText(getWeapon(weapon)?.label ?? weapon);
   }
 
   /** Show or hide the gravity boost status indicator. */

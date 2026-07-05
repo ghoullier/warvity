@@ -134,6 +134,66 @@ export class AudioManager {
     osc.stop(now + duration);
   }
 
+  /** Short bandpass-filtered noise burst (jetpack thrust). */
+  playJetpackThrust(): void {
+    if (this.#muted) return;
+    const duration = 0.12;
+    const bufferSize = Math.ceil(this.#ctx.sampleRate * duration);
+    const buffer = this.#ctx.createBuffer(1, bufferSize, this.#ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    const source = this.#ctx.createBufferSource();
+    source.buffer = buffer;
+
+    // Bandpass centred around 800 Hz for a mid-range whoosh
+    const filter = this.#ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 800;
+    filter.Q.value = 1.5;
+
+    const gain = this.#ctx.createGain();
+    const now = this.#ctx.currentTime;
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.linearRampToValueAtTime(0, now + duration);
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.#master);
+    source.start(now);
+    source.stop(now + duration);
+  }
+
+  /** Sputtering engine-stop sound (jetpack fuel exhausted). */
+  playJetpackEnd(): void {
+    if (this.#muted) return;
+    const duration = 0.4;
+    const now = this.#ctx.currentTime;
+
+    // Two descending oscillators that fade and sputter
+    for (const [startHz, endHz] of [
+      [600, 80],
+      [400, 40],
+    ] as [number, number][]) {
+      const osc = this.#ctx.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(startHz, now);
+      osc.frequency.linearRampToValueAtTime(endHz, now + duration);
+
+      const gain = this.#ctx.createGain();
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.linearRampToValueAtTime(0.15, now + duration * 0.5);
+      gain.gain.linearRampToValueAtTime(0, now + duration);
+
+      osc.connect(gain);
+      gain.connect(this.#master);
+      osc.start(now);
+      osc.stop(now + duration);
+    }
+  }
+
   /** Two harmonically rising oscillators (teleport / turn start). */
   playTeleport(): void {
     if (this.#muted) return;

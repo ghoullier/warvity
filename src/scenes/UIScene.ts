@@ -143,7 +143,8 @@ export class UIScene extends Phaser.Scene {
           | "grenade"
           | "teleporter"
           | "singularity"
-          | "gravity-boost",
+          | "gravity-boost"
+          | "flamethrower",
       ) => this.#applyWeaponChange(weapon),
       this,
     );
@@ -280,7 +281,8 @@ export class UIScene extends Phaser.Scene {
       | "grenade"
       | "teleporter"
       | "singularity"
-      | "gravity-boost",
+      | "gravity-boost"
+      | "flamethrower",
   ): void {
     const labels: Record<typeof weapon, string> = {
       bazooka: "🚀  Bazooka",
@@ -288,6 +290,7 @@ export class UIScene extends Phaser.Scene {
       teleporter: "🌀  Teleporter",
       singularity: "🕳️  Singularity",
       "gravity-boost": "🪐  Gravity Boost",
+      flamethrower: "🔥  Flamethrower",
     };
     this.#weaponText.setText(labels[weapon]);
   }

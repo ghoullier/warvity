@@ -180,6 +180,49 @@ export class AudioManager {
     }
   }
 
+  /**
+   * Crackling fire sound for the flamethrower — ~1.5 s of noise filtered
+   * through a band-pass to simulate hissing/crackling flames.
+   */
+  playFlamethrower(): void {
+    if (this.#muted) return;
+    const duration = 1.5;
+    const bufferSize = Math.ceil(this.#ctx.sampleRate * duration);
+    const buffer = this.#ctx.createBuffer(1, bufferSize, this.#ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+
+    const source = this.#ctx.createBufferSource();
+    source.buffer = buffer;
+
+    // Band-pass centred on ~800 Hz gives a hissing crackle
+    const bandPass = this.#ctx.createBiquadFilter();
+    bandPass.type = "bandpass";
+    bandPass.frequency.value = 800;
+    bandPass.Q.value = 0.8;
+
+    // Low-pass layer for warmth
+    const lowPass = this.#ctx.createBiquadFilter();
+    lowPass.type = "lowpass";
+    lowPass.frequency.value = 1800;
+
+    const gain = this.#ctx.createGain();
+    const now = this.#ctx.currentTime;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.7, now + 0.05); // quick attack
+    gain.gain.linearRampToValueAtTime(0.5, now + 0.8); // sustain
+    gain.gain.linearRampToValueAtTime(0, now + duration); // fade out
+
+    source.connect(bandPass);
+    bandPass.connect(lowPass);
+    lowPass.connect(gain);
+    gain.connect(this.#master);
+    source.start(now);
+    source.stop(now + duration);
+  }
+
   /** Toggle global mute on/off. Returns the new muted state. */
   toggleMute(): boolean {
     this.#muted = !this.#muted;

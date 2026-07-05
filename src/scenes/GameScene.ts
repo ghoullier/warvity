@@ -63,7 +63,8 @@ export class GameScene extends Phaser.Scene {
     | "teleporter"
     | "singularity"
     | "gravity-boost"
-    | "flamethrower" = "bazooka";
+    | "flamethrower"
+    | "shield" = "bazooka";
   #activeFlamethrower: Flamethrower | null = null;
   #gravityMultiplier = 1;
   #activeGravityBoost: GravityBoost | null = null;
@@ -122,7 +123,8 @@ export class GameScene extends Phaser.Scene {
     | "teleporter"
     | "singularity"
     | "gravity-boost"
-    | "flamethrower" {
+    | "flamethrower"
+    | "shield" {
     return this.#activeWeapon;
   }
 
@@ -183,6 +185,7 @@ export class GameScene extends Phaser.Scene {
       console.log(
         `[TurnManager] Turn started — active worm: ${worm.name} (team ${this.#turnManager.getActiveTeamIndex()})`,
       );
+      worm.clearShield();
       this.#audioManager.playTeleport();
       this.#cameraController.follow(worm);
       this.#activateCurrentWeapon(worm);
@@ -336,6 +339,7 @@ export class GameScene extends Phaser.Scene {
         "teleporter",
         "gravity-boost",
         "flamethrower",
+        "shield",
       ] as const;
       const idx = weapons.indexOf(this.#activeWeapon);
       // biome-ignore lint/style/noNonNullAssertion: modulo guarantees in-bounds index
@@ -362,7 +366,22 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
+    // Space key activates the shield when that weapon is selected
+    this.input.keyboard?.on("keydown-SPACE", () => {
+      if (this.#activeWeapon === "shield") {
+        const worm = this.#turnManager.getCurrentWorm();
+        worm.activateShield();
+        this.#audioManager.playShieldActivate();
+        this.#turnManager.nextTurn();
+        this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
+      }
+    });
+
     // Worm death events
+    this.events.on("shield-blocked", () => {
+      this.#audioManager.playShieldBlock();
+    });
+
     this.events.on("worm-died", (_worm: Character) => {
       this.#audioManager.playDeath();
       for (const team of this.#teams) {
@@ -454,6 +473,9 @@ export class GameScene extends Phaser.Scene {
     if (this.#activeWeapon === "teleporter") {
       this.#aimingSystem.deactivate();
       this.#teleporter.activate(worm);
+    } else if (this.#activeWeapon === "shield") {
+      this.#teleporter.deactivate();
+      this.#aimingSystem.deactivate();
     } else {
       this.#teleporter.deactivate();
       this.#aimingSystem.activate(worm);

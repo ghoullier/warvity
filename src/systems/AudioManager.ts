@@ -221,6 +221,54 @@ export class AudioManager {
     gain.connect(this.#master);
     source.start(now);
     source.stop(now + duration);
+  /** Rising hum-chime: 300→900 Hz over 0.5 s (shield activation). */
+  playShieldActivate(): void {
+    if (this.#muted) return;
+    const duration = 0.5;
+    const now = this.#ctx.currentTime;
+
+    for (const [startHz, endHz] of [
+      [300, 900],
+      [450, 1200],
+    ] as [number, number][]) {
+      const osc = this.#ctx.createOscillator();
+      osc.type = "sine";
+
+      const gain = this.#ctx.createGain();
+      osc.frequency.setValueAtTime(startHz, now);
+      osc.frequency.linearRampToValueAtTime(endHz, now + duration);
+
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.25, now + 0.05);
+      gain.gain.linearRampToValueAtTime(0.15, now + duration * 0.7);
+      gain.gain.linearRampToValueAtTime(0, now + duration);
+
+      osc.connect(gain);
+      gain.connect(this.#master);
+      osc.start(now);
+      osc.stop(now + duration);
+    }
+  }
+
+  /** Short metallic clank (damage blocked by shield). */
+  playShieldBlock(): void {
+    if (this.#muted) return;
+    const duration = 0.18;
+    const now = this.#ctx.currentTime;
+
+    const osc = this.#ctx.createOscillator();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.linearRampToValueAtTime(800, now + duration);
+
+    const gain = this.#ctx.createGain();
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.linearRampToValueAtTime(0, now + duration);
+
+    osc.connect(gain);
+    gain.connect(this.#master);
+    osc.start(now);
+    osc.stop(now + duration);
   }
 
   /** Toggle global mute on/off. Returns the new muted state. */

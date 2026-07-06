@@ -120,7 +120,7 @@ export class GameScene extends Phaser.Scene {
 
     // Audio
     this.#audioManager = new AudioManager(this);
-    this.#audioManager.startMusic();
+    this.#audioManager.startMusic(this.#planetStyle);
 
     // Build teams and worms from configuration
     for (let t = 0; t < this.#config.teams; t++) {
@@ -147,7 +147,10 @@ export class GameScene extends Phaser.Scene {
       this.#teams.push({ name: TEAM_NAMES[t] ?? `Team ${t + 1}`, worms });
       this.#allCharacters.push(...worms);
     }
-    this.#turnManager = new TurnManager(this.#teams.map((team) => team.worms), this);
+    this.#turnManager = new TurnManager(
+      this.#teams.map((team) => team.worms),
+      this,
+    );
     this.#aimingSystem = new AimingSystem(this);
     this.#teleporter = new Teleporter(this, this.#terrain);
 
@@ -213,6 +216,11 @@ export class GameScene extends Phaser.Scene {
       this.#activeWeapon = ids[(idx + 1) % ids.length] ?? "bazooka";
       this.events.emit(GameEvents.WEAPON_CHANGED, this.#activeWeapon);
       this.#activateCurrentWeapon(this.#turnManager.getCurrentWorm());
+    });
+
+    this.input.keyboard?.addKey("M").on("down", () => {
+      const muted = this.#audioManager.toggleMusicMute();
+      this.events.emit(GameEvents.MUSIC_TOGGLED, muted);
     });
 
     // Camera

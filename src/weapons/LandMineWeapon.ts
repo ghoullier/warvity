@@ -9,6 +9,7 @@ const mines: LandMine[] = [];
 registerWeapon({
   id: "mine",
   label: "💣  Mine",
+  trajectoryType: "none",
 
   fire(ctx: WeaponContext): boolean {
     const { scene, worm, audioManager } = ctx;

@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { GRAVITY_STRENGTH, PLANET_CENTER } from "../config";
 import type { Character } from "../entities/Character";
+import { getWeapon } from "../weapons/WeaponRegistry";
 
 const ARROW_LENGTH = 55;
 const ARROW_HEAD_SIZE = 10;
@@ -10,6 +11,7 @@ const TRAJECTORY_STEPS = 10;
 const TRAJECTORY_SIM_STEPS = 6; // physics ticks between preview dots
 const MAX_FIRE_SPEED = 15;
 const FIRE_OFFSET = 40; // px from character centre to projectile spawn
+const LINE_TRAJECTORY_LENGTH = 300; // px for straight-line preview
 
 const POWER_BAR_WIDTH = 40;
 const POWER_BAR_HEIGHT = 6;
@@ -33,6 +35,7 @@ export class AimingSystem {
 
   #worm: Character | null = null;
   #active = false;
+  #activeWeaponId = "";
 
   /** Offset from the radial-outward direction (radians). 0 = straight up. */
   #aimOffset = 0;
@@ -55,12 +58,13 @@ export class AimingSystem {
   // ──────────────────────────────── public API ─────────────────────────────────
 
   /** Bind the aiming system to `worm` and show the UI. */
-  activate(worm: Character): void {
+  activate(worm: Character, weaponId = ""): void {
     this.#worm = worm;
     this.#aimOffset = 0;
     this.#power = 0;
     this.#charging = false;
     this.#active = true;
+    this.#activeWeaponId = weaponId;
 
     this.#keyLeft =
       this.#scene.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT) ??
@@ -223,32 +227,50 @@ export class AimingSystem {
     // ── Trajectory preview (dashed dots) ─────────────────────────────────────
     this.#trajectoryGfx.clear();
 
-    // Compute initial velocity for preview
-    const speed = this.#power * MAX_FIRE_SPEED;
-    let px = wx + Math.cos(worldAngle) * FIRE_OFFSET;
-    let py = wy + Math.sin(worldAngle) * FIRE_OFFSET;
-    let vx = Math.cos(worldAngle) * speed;
-    let vy = Math.sin(worldAngle) * speed;
+    const trajectoryType =
+      getWeapon(this.#activeWeaponId)?.trajectoryType ?? "ballistic";
 
-    for (let i = 0; i < TRAJECTORY_STEPS; i++) {
-      // Advance TRAJECTORY_SIM_STEPS physics ticks
-      for (let s = 0; s < TRAJECTORY_SIM_STEPS; s++) {
-        const ddx = PLANET_CENTER.x - px;
-        const ddy = PLANET_CENTER.y - py;
-        const dist = Math.sqrt(ddx * ddx + ddy * ddy);
-        if (dist > 0) {
-          vx += (ddx / dist) * GRAVITY_STRENGTH * 60;
-          vy += (ddy / dist) * GRAVITY_STRENGTH * 60;
+    if (trajectoryType === "ballistic") {
+      // Parabolic arc simulating radial gravity
+      const speed = this.#power * MAX_FIRE_SPEED;
+      let px = wx + Math.cos(worldAngle) * FIRE_OFFSET;
+      let py = wy + Math.sin(worldAngle) * FIRE_OFFSET;
+      let vx = Math.cos(worldAngle) * speed;
+      let vy = Math.sin(worldAngle) * speed;
+
+      for (let i = 0; i < TRAJECTORY_STEPS; i++) {
+        for (let s = 0; s < TRAJECTORY_SIM_STEPS; s++) {
+          const ddx = PLANET_CENTER.x - px;
+          const ddy = PLANET_CENTER.y - py;
+          const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+          if (dist > 0) {
+            vx += (ddx / dist) * GRAVITY_STRENGTH * 60;
+            vy += (ddy / dist) * GRAVITY_STRENGTH * 60;
+          }
+          px += vx;
+          py += vy;
         }
-        px += vx;
-        py += vy;
-      }
 
-      // Alternate opacity for dash effect
-      const alpha = i % 2 === 0 ? 0.8 : 0.3;
-      this.#trajectoryGfx.fillStyle(0xffffff, alpha);
-      this.#trajectoryGfx.fillCircle(px, py, 2);
+        const alpha = i % 2 === 0 ? 0.8 : 0.3;
+        this.#trajectoryGfx.fillStyle(0xffffff, alpha);
+        this.#trajectoryGfx.fillCircle(px, py, 2);
+      }
+    } else if (trajectoryType === "line") {
+      // Straight dotted line in the aim direction
+      const originX = wx + Math.cos(worldAngle) * FIRE_OFFSET;
+      const originY = wy + Math.sin(worldAngle) * FIRE_OFFSET;
+      for (let i = 1; i <= TRAJECTORY_STEPS; i++) {
+        const t = (i / TRAJECTORY_STEPS) * LINE_TRAJECTORY_LENGTH;
+        const alpha = i % 2 === 0 ? 0.8 : 0.3;
+        this.#trajectoryGfx.fillStyle(0xffffff, alpha);
+        this.#trajectoryGfx.fillCircle(
+          originX + Math.cos(worldAngle) * t,
+          originY + Math.sin(worldAngle) * t,
+          2,
+        );
+      }
     }
+    // 'none': no trajectory drawn
   }
 
   #fire(): void {

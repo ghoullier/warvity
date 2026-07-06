@@ -31,6 +31,14 @@ export interface WeaponContext {
   deactivateAiming(): void;
 }
 
+/**
+ * Determines which trajectory preview the AimingSystem draws for this weapon.
+ * - `'ballistic'` — parabolic arc simulating radial gravity (default for aim weapons).
+ * - `'none'`      — no trajectory preview shown.
+ * - `'line'`      — straight dotted line (e.g. teleporter-style indicator).
+ */
+export type TrajectoryType = "ballistic" | "none" | "line";
+
 export interface WeaponDefinition {
   readonly id: string;
   readonly label: string;
@@ -41,6 +49,8 @@ export interface WeaponDefinition {
    * - `'space'`   — fires on bare Space-key press, no charge (e.g. Shield).
    */
   readonly inputMode?: "aim" | "pointer" | "space";
+  /** Which trajectory preview to show while aiming. Defaults to `'ballistic'`. */
+  readonly trajectoryType?: TrajectoryType;
   /** Called when the player fires. Returns true if the weapon ends the turn asynchronously. */
   fire(ctx: WeaponContext): boolean;
   /** Called every frame for all registered weapons (handles in-flight entities & mines). */

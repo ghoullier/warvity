@@ -8,6 +8,7 @@ registerWeapon({
   id: "shield",
   label: "🛡️  Shield",
   inputMode: "space",
+  trajectoryType: "none",
 
   fire(ctx: WeaponContext): boolean {
     ctx.worm.activateShield();

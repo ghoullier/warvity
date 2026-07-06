@@ -6,6 +6,7 @@ let activeBoost: GravityBoost | null = null;
 registerWeapon({
   id: "gravity-boost",
   label: "🪐  Gravity Boost",
+  trajectoryType: "none",
 
   fire(ctx: WeaponContext): boolean {
     if (activeBoost?.isActive()) return false;

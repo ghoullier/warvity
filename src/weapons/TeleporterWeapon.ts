@@ -11,6 +11,7 @@ registerWeapon({
   id: "teleporter",
   label: "🌀  Teleporter",
   inputMode: "pointer",
+  trajectoryType: "none",
 
   fire(_ctx: WeaponContext): boolean {
     // GameScene routes pointer clicks to Teleporter.handleClick() directly.

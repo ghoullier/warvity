@@ -11,6 +11,7 @@ const grenades: Grenade[] = [];
 registerWeapon({
   id: "grenade",
   label: "💣  Grenade",
+  trajectoryType: "ballistic",
 
   fire(ctx: WeaponContext): boolean {
     const { scene, worm, angle, power, audioManager } = ctx;

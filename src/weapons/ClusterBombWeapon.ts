@@ -11,6 +11,7 @@ const clusterBombs: ClusterBomb[] = [];
 registerWeapon({
   id: "cluster-bomb",
   label: "🌟  Cluster Bomb",
+  trajectoryType: "ballistic",
 
   fire(ctx: WeaponContext): boolean {
     const { scene, worm, angle, power, audioManager } = ctx;

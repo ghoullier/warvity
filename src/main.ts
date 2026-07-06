@@ -3,6 +3,7 @@ import { CANVAS_SIZE } from "./config";
 import { GameOverScene } from "./scenes/GameOverScene";
 import { GameScene } from "./scenes/GameScene";
 import { MenuScene } from "./scenes/MenuScene";
+import { RoundSummaryScene } from "./scenes/RoundSummaryScene";
 import { UIScene } from "./scenes/UIScene";
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -17,7 +18,7 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [MenuScene, GameScene, UIScene, GameOverScene],
+  scene: [MenuScene, GameScene, UIScene, GameOverScene, RoundSummaryScene],
 };
 
 new Phaser.Game(config);

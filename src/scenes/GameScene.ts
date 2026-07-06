@@ -55,7 +55,13 @@ export class GameScene extends Phaser.Scene {
   #gravityMultiplier = 1;
   #cursors: Phaser.Types.Input.Keyboard.CursorKeys | undefined;
   #cameraController!: CameraController;
-  #config = { teams: 2, wormsPerTeam: 1 };
+  #config = {
+    teams: 2,
+    wormsPerTeam: 1,
+    rounds: 1,
+    currentRound: 1,
+    roundWins: [0, 0] as number[],
+  };
   #planetStyle: PlanetStyle = DEFAULT_PLANET_STYLE;
 
   constructor() {
@@ -68,10 +74,17 @@ export class GameScene extends Phaser.Scene {
     teams?: number;
     wormsPerTeam?: number;
     planetStyle?: PlanetStyle;
+    rounds?: number;
+    currentRound?: number;
+    roundWins?: number[];
   }): void {
+    const teams = data?.teams ?? 2;
     this.#config = {
-      teams: data?.teams ?? 2,
+      teams,
       wormsPerTeam: data?.wormsPerTeam ?? 1,
+      rounds: data?.rounds ?? 1,
+      currentRound: data?.currentRound ?? 1,
+      roundWins: data?.roundWins ?? Array.from({ length: teams }, () => 0),
     };
     this.#planetStyle = data?.planetStyle ?? DEFAULT_PLANET_STYLE;
     // Reset mutable state so the scene can be restarted cleanly
@@ -105,6 +118,18 @@ export class GameScene extends Phaser.Scene {
 
   get audioManager(): AudioManager {
     return this.#audioManager;
+  }
+
+  get currentRound(): number {
+    return this.#config.currentRound;
+  }
+
+  get totalRounds(): number {
+    return this.#config.rounds;
+  }
+
+  get roundWins(): number[] {
+    return this.#config.roundWins;
   }
 
   // ──────────────────────────────── lifecycle ───────────────────────────────────
@@ -272,16 +297,53 @@ export class GameScene extends Phaser.Scene {
             hp: t.worms.reduce((sum, w) => sum + (w.isAlive() ? w.hp : 0), 0),
           }));
 
+          // Update round wins
+          const newRoundWins = [...this.#config.roundWins];
+          if (winnerIndex >= 0) {
+            newRoundWins[winnerIndex] = (newRoundWins[winnerIndex] ?? 0) + 1;
+          }
+
+          const winsNeeded = Math.ceil(this.#config.rounds / 2);
+          const overallWinnerIndex = newRoundWins.findIndex(
+            (w) => w >= winsNeeded,
+          );
+
           this.scene.stop(SceneKeys.UI);
-          this.scene.start(SceneKeys.GameOver, {
-            winner: winnerTeam?.name ?? "Nobody",
-            winnerColor:
-              winnerIndex >= 0
-                ? (TEAM_COLORS[winnerIndex] ?? 0xffffff)
-                : 0xffffff,
-            scores,
-            config: { ...this.#config, planetStyle: this.#planetStyle },
-          });
+
+          if (overallWinnerIndex >= 0) {
+            // Series over — go to GameOver
+            this.scene.start(SceneKeys.GameOver, {
+              winner: this.#teams[overallWinnerIndex]?.name ?? "Nobody",
+              winnerColor: TEAM_COLORS[overallWinnerIndex] ?? 0xffffff,
+              scores,
+              config: {
+                teams: this.#config.teams,
+                wormsPerTeam: this.#config.wormsPerTeam,
+                planetStyle: this.#planetStyle,
+                rounds: this.#config.rounds,
+                currentRound: this.#config.currentRound,
+                roundWins: newRoundWins,
+              },
+            });
+          } else {
+            // More rounds to play — go to RoundSummaryScene
+            this.scene.start(SceneKeys.RoundSummary, {
+              currentRound: this.#config.currentRound,
+              totalRounds: this.#config.rounds,
+              roundWins: newRoundWins,
+              scores,
+              teamNames: this.#teams.map((t) => t.name),
+              teamColors: TEAM_COLORS.slice(0, this.#config.teams),
+              nextConfig: {
+                teams: this.#config.teams,
+                wormsPerTeam: this.#config.wormsPerTeam,
+                planetStyle: this.#planetStyle,
+                rounds: this.#config.rounds,
+                currentRound: this.#config.currentRound + 1,
+                roundWins: newRoundWins,
+              },
+            });
+          }
           return;
         }
       }

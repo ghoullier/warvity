@@ -82,6 +82,16 @@ export class TerrainManager {
     // Static outline overlay drawn above the RenderTexture; stays visible
     // even after explosions punch holes in the terrain below.
     this.#outlineGraphics = scene.add.graphics();
+
+    // Atmosphere glow ring — soft halo 10px outside the planet surface
+    this.#outlineGraphics.lineStyle(12, this.#style.atmosphereColor, 0.25);
+    this.#outlineGraphics.strokeCircle(
+      PLANET_CENTER.x,
+      PLANET_CENTER.y,
+      PLANET_RADIUS + 10,
+    );
+
+    // Hard terrain outline on top of the glow
     this.#outlineGraphics.lineStyle(3, this.#style.terrainOutline, 1);
     this.#outlineGraphics.strokeCircle(
       PLANET_CENTER.x,
@@ -192,19 +202,39 @@ export class TerrainManager {
 
   #drawInitialTerrain(): void {
     const gfx = this.#scene.add.graphics();
+    const cx = PLANET_CENTER.x;
+    const cy = PLANET_CENTER.y;
 
-    // Outer rock layer
-    gfx.fillStyle(this.#style.terrainFill);
-    gfx.fillCircle(PLANET_CENTER.x, PLANET_CENTER.y, PLANET_RADIUS);
+    // 1. Base fill — solid planet interior
+    gfx.fillStyle(this.#style.terrainFill, 1);
+    gfx.fillCircle(cx, cy, PLANET_RADIUS);
 
-    // Inner layer with accent colour
-    gfx.fillStyle(this.#style.surfaceAccent);
-    gfx.fillCircle(PLANET_CENTER.x, PLANET_CENTER.y, PLANET_RADIUS - 8);
+    // 2. Surface ring shadow (90% radius) — darkens inner mass, leaving the
+    //    outer 10% ring as the base terrainFill to create an edge depth cue.
+    gfx.fillStyle(0x000000, 0.2);
+    gfx.fillCircle(cx, cy, PLANET_RADIUS * 0.9);
 
-    // Core highlight (slightly darker blend)
-    const coreFill = Math.round(this.#style.surfaceAccent * 0.85) & 0xffffff;
-    gfx.fillStyle(coreFill);
-    gfx.fillCircle(PLANET_CENTER.x, PLANET_CENTER.y, PLANET_RADIUS * 0.6);
+    // 3. Mid layer (65% radius) — accent colour blended lighter to lift depth
+    gfx.fillStyle(this.#style.surfaceAccent, 0.2);
+    gfx.fillCircle(cx, cy, PLANET_RADIUS * 0.65);
+
+    // 4. Core glow (40% radius) — bright inner highlight simulating curvature
+    gfx.fillStyle(this.#style.coreColor, 0.25);
+    gfx.fillCircle(cx, cy, PLANET_RADIUS * 0.4);
+
+    // 5. Surface texture blobs — 25 small dark circles scattered near the
+    //    terrain ring to represent rocks/craters at 30% opacity.
+    const BLOB_COUNT = 25;
+    for (let i = 0; i < BLOB_COUNT; i++) {
+      const angle =
+        (Math.PI * 2 * i) / BLOB_COUNT + (Math.random() - 0.5) * 0.5;
+      const dist = PLANET_RADIUS * (0.82 + Math.random() * 0.12);
+      const bx = cx + Math.cos(angle) * dist;
+      const by = cy + Math.sin(angle) * dist;
+      const br = 3 + Math.random() * 5;
+      gfx.fillStyle(this.#style.terrainOutline, 0.3);
+      gfx.fillCircle(bx, by, br);
+    }
 
     this.#renderTexture.draw(gfx);
     gfx.destroy();

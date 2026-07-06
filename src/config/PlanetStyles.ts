@@ -6,6 +6,8 @@ export interface PlanetStyle {
   terrainOutline: number;
   background: number;
   surfaceAccent: number;
+  coreColor: number;
+  atmosphereColor: number;
 }
 
 export const PLANET_STYLES: PlanetStyle[] = [
@@ -17,6 +19,8 @@ export const PLANET_STYLES: PlanetStyle[] = [
     terrainOutline: 0x5a3e1b,
     background: 0x1a1a2e,
     surfaceAccent: 0x4a7c59,
+    coreColor: 0xb8895a,
+    atmosphereColor: 0x4499ff,
   },
   {
     id: "moon",
@@ -26,6 +30,8 @@ export const PLANET_STYLES: PlanetStyle[] = [
     terrainOutline: 0x555555,
     background: 0x0a0a0a,
     surfaceAccent: 0xaaaaaa,
+    coreColor: 0xbbbbbb,
+    atmosphereColor: 0x888888,
   },
   {
     id: "lava",
@@ -35,6 +41,8 @@ export const PLANET_STYLES: PlanetStyle[] = [
     terrainOutline: 0xff4500,
     background: 0x1a0000,
     surfaceAccent: 0xff6b00,
+    coreColor: 0xff8800,
+    atmosphereColor: 0xff4400,
   },
   {
     id: "ice",
@@ -44,6 +52,8 @@ export const PLANET_STYLES: PlanetStyle[] = [
     terrainOutline: 0x4a90d9,
     background: 0x0d1b2a,
     surfaceAccent: 0xe0f4ff,
+    coreColor: 0xe8f8ff,
+    atmosphereColor: 0x88ccff,
   },
 ];
 

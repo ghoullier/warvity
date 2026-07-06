@@ -147,7 +147,10 @@ export class GameScene extends Phaser.Scene {
       this.#teams.push({ name: TEAM_NAMES[t] ?? `Team ${t + 1}`, worms });
       this.#allCharacters.push(...worms);
     }
-    this.#turnManager = new TurnManager(this.#teams.map((team) => team.worms), this);
+    this.#turnManager = new TurnManager(
+      this.#teams.map((team) => team.worms),
+      this,
+    );
     this.#aimingSystem = new AimingSystem(this);
     this.#teleporter = new Teleporter(this, this.#terrain);
 
@@ -251,16 +254,29 @@ export class GameScene extends Phaser.Scene {
       this.#audioManager.playDeath();
       for (const team of this.#teams) {
         if (team.worms.every((c) => !c.isAlive())) {
-          const winner = this.#teams.find(
+          const winnerTeam = this.#teams.find(
             (t) => t !== team && t.worms.some((c) => c.isAlive()),
           );
           resetAllWeapons();
           this.#turnManager.stop();
-          if (winner) {
-            this.scene.launch(SceneKeys.GameOver, { winner: winner.name });
-          } else {
-            this.scene.launch(SceneKeys.GameOver, { winner: "Nobody" });
-          }
+
+          const winnerIndex = winnerTeam ? this.#teams.indexOf(winnerTeam) : -1;
+          const scores = this.#teams.map((t, i) => ({
+            name: t.name,
+            color: TEAM_COLORS[i] ?? 0xffffff,
+            hp: t.worms.reduce((sum, w) => sum + (w.isAlive() ? w.hp : 0), 0),
+          }));
+
+          this.scene.stop(SceneKeys.UI);
+          this.scene.start(SceneKeys.GameOver, {
+            winner: winnerTeam?.name ?? "Nobody",
+            winnerColor:
+              winnerIndex >= 0
+                ? (TEAM_COLORS[winnerIndex] ?? 0xffffff)
+                : 0xffffff,
+            scores,
+            config: { ...this.#config, planetStyle: this.#planetStyle },
+          });
           return;
         }
       }

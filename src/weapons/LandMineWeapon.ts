@@ -1,5 +1,6 @@
 import { PLANET_CENTER, WEAPON_CONFIG } from "../config";
 import { LandMine } from "../entities/LandMine";
+import { GameEvents } from "../systems/GameEvents";
 import * as ParticleSystem from "../systems/ParticleSystem";
 import { applyExplosion } from "./explosionHelper";
 import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
@@ -34,24 +35,27 @@ registerWeapon({
    * the handler must remain active for the lifetime of the scene.
    */
   onSceneCreate(scene, buildCtx): void {
-    scene.events.on("mine-beep", () => {
+    scene.events.on(GameEvents.MINE_BEEP, () => {
       buildCtx().audioManager.playMineBeep();
     });
 
-    scene.events.on("mine-exploded", ({ x, y }: { x: number; y: number }) => {
-      const ctx = buildCtx();
-      ctx.audioManager.playMineExplosion();
-      applyExplosion(
-        ctx,
-        x,
-        y,
-        WEAPON_CONFIG.landMine.radius,
-        WEAPON_CONFIG.landMine.damage,
-      );
-      ParticleSystem.explode(scene, x, y, PLANET_CENTER);
-      ParticleSystem.debris(scene, x, y, PLANET_CENTER);
-      ctx.nextTurn();
-    });
+    scene.events.on(
+      GameEvents.MINE_EXPLODED,
+      ({ x, y }: { x: number; y: number }) => {
+        const ctx = buildCtx();
+        ctx.audioManager.playMineExplosion();
+        applyExplosion(
+          ctx,
+          x,
+          y,
+          WEAPON_CONFIG.landMine.radius,
+          WEAPON_CONFIG.landMine.damage,
+        );
+        ParticleSystem.explode(scene, x, y, PLANET_CENTER);
+        ParticleSystem.debris(scene, x, y, PLANET_CENTER);
+        ctx.nextTurn();
+      },
+    );
   },
 
   onReset(): void {

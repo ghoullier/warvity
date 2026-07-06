@@ -1,6 +1,7 @@
 import Matter from "matter-js";
 import type Phaser from "phaser";
 import { PLANET_CENTER } from "../config";
+import { GameEvents } from "../systems/GameEvents";
 import { toMatterBody } from "../utils/matterUtils";
 
 const CLUSTER_RADIUS = 10;
@@ -147,7 +148,7 @@ export class ClusterBomb {
     this.#scene.matter.world.remove(this.body, false);
     this.#graphics.destroy();
 
-    this.#scene.events.emit("cluster-split");
+    this.#scene.events.emit(GameEvents.CLUSTER_SPLIT);
 
     // Direction away from planet center
     const dx = x - PLANET_CENTER.x;
@@ -218,12 +219,12 @@ export class ClusterBomb {
     }
 
     this.#scene.cameras.main.shake(80, 0.005);
-    this.#scene.events.emit("sub-munition-exploded", { x, y });
+    this.#scene.events.emit(GameEvents.SUB_MUNITION_EXPLODED, { x, y });
 
     this.#pendingSubCount--;
     if (this.#pendingSubCount <= 0) {
       this.#active = false;
-      this.#scene.events.emit("cluster-exploded");
+      this.#scene.events.emit(GameEvents.CLUSTER_EXPLODED);
     }
   }
 }

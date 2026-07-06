@@ -1,5 +1,6 @@
 import { PLANET_CENTER, WEAPON_CONFIG } from "../config";
 import { ClusterBomb } from "../entities/ClusterBomb";
+import { GameEvents } from "../systems/GameEvents";
 import * as ParticleSystem from "../systems/ParticleSystem";
 import { applyExplosion } from "./explosionHelper";
 import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
@@ -29,7 +30,7 @@ registerWeapon({
       ),
     );
 
-    scene.events.on("cluster-split", () => {
+    scene.events.on(GameEvents.CLUSTER_SPLIT, () => {
       audioManager.playClusterSplit();
     });
 
@@ -45,11 +46,11 @@ registerWeapon({
       ParticleSystem.explode(scene, x, y, PLANET_CENTER);
     };
 
-    scene.events.on("sub-munition-exploded", onSubExploded);
+    scene.events.on(GameEvents.SUB_MUNITION_EXPLODED, onSubExploded);
 
-    scene.events.once("cluster-exploded", () => {
-      scene.events.off("sub-munition-exploded", onSubExploded);
-      scene.events.off("cluster-split");
+    scene.events.once(GameEvents.CLUSTER_EXPLODED, () => {
+      scene.events.off(GameEvents.SUB_MUNITION_EXPLODED, onSubExploded);
+      scene.events.off(GameEvents.CLUSTER_SPLIT);
       ctx.nextTurn();
     });
 

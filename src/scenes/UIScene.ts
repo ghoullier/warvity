@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { CANVAS_SIZE } from "../config";
 import type { Character } from "../entities/Character";
 import type { AudioManager } from "../systems/AudioManager";
+import { GameEvents } from "../systems/GameEvents";
 import { getWeapon, type WeaponId } from "../weapons/WeaponRegistry";
 import type { GameScene } from "./GameScene";
 import { SceneKeys } from "./SceneKeys";
@@ -123,7 +124,7 @@ export class UIScene extends Phaser.Scene {
     // ── Subscribe to GameScene events ────────────────────────────────────────
     const ge = game.events;
     ge.on(
-      "turn-start",
+      GameEvents.TURN_START,
       (worm: Character, teamName: string) => {
         this.#applyTurnUpdate(worm, teamName);
         this.#applyTimerTick(30);
@@ -131,43 +132,51 @@ export class UIScene extends Phaser.Scene {
       this,
     );
     ge.on(
-      "timer-tick",
+      GameEvents.TIMER_TICK,
       (remaining: number) => this.#applyTimerTick(remaining),
       this,
     );
-    ge.on("hp-changed", (worm: Character) => this.#refreshHpFill(worm), this);
-    ge.on("worm-died", (worm: Character) => this.#refreshHpFill(worm), this);
     ge.on(
-      "weapon-changed",
+      GameEvents.HP_CHANGED,
+      (worm: Character) => this.#refreshHpFill(worm),
+      this,
+    );
+    ge.on(
+      GameEvents.WORM_DIED,
+      (worm: Character) => this.#refreshHpFill(worm),
+      this,
+    );
+    ge.on(
+      GameEvents.WEAPON_CHANGED,
       (weapon: WeaponId) => this.#applyWeaponChange(weapon),
       this,
     );
     ge.on(
-      "gravity-changed",
+      GameEvents.GRAVITY_CHANGED,
       ({ mode, remaining }: { mode: string | null; remaining: number }) =>
         this.#applyGravityChanged(mode, remaining),
       this,
     );
     ge.on(
-      "jetpack-tick",
+      GameEvents.JETPACK_TICK,
       (remaining: number) => this.#applyJetpackTick(remaining),
       this,
     );
-    ge.on("jetpack-end", () => this.#applyJetpackEnd(), this);
+    ge.on(GameEvents.JETPACK_END, () => this.#applyJetpackEnd(), this);
   }
 
   override shutdown(): void {
     // Remove listeners keyed by this scene context so they don't leak
     const game = this.scene.get(SceneKeys.Game) as GameScene | null;
     if (game) {
-      game.events.off("turn-start", undefined, this);
-      game.events.off("timer-tick", undefined, this);
-      game.events.off("hp-changed", undefined, this);
-      game.events.off("worm-died", undefined, this);
-      game.events.off("weapon-changed", undefined, this);
-      game.events.off("gravity-changed", undefined, this);
-      game.events.off("jetpack-tick", undefined, this);
-      game.events.off("jetpack-end", undefined, this);
+      game.events.off(GameEvents.TURN_START, undefined, this);
+      game.events.off(GameEvents.TIMER_TICK, undefined, this);
+      game.events.off(GameEvents.HP_CHANGED, undefined, this);
+      game.events.off(GameEvents.WORM_DIED, undefined, this);
+      game.events.off(GameEvents.WEAPON_CHANGED, undefined, this);
+      game.events.off(GameEvents.GRAVITY_CHANGED, undefined, this);
+      game.events.off(GameEvents.JETPACK_TICK, undefined, this);
+      game.events.off(GameEvents.JETPACK_END, undefined, this);
     }
     this.#wormRows.clear();
   }

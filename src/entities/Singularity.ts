@@ -1,6 +1,7 @@
 import Matter from "matter-js";
 import type Phaser from "phaser";
 import { PLANET_CENTER, PLANET_RADIUS } from "../config";
+import { GameEvents } from "../systems/GameEvents";
 import { toMatterBody } from "../utils/matterUtils";
 
 const SINGULARITY_RADIUS = 8;
@@ -245,6 +246,6 @@ export class Singularity {
     this.#coreGfx.destroy();
     this.#ringGfx.destroy();
 
-    this.#scene.events.emit("singularity-exploded", { x, y });
+    this.#scene.events.emit(GameEvents.SINGULARITY_EXPLODED, { x, y });
   }
 }

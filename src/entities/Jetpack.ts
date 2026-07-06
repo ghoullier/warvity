@@ -2,6 +2,7 @@ import Matter from "matter-js";
 import type Phaser from "phaser";
 import { PLANET_CENTER } from "../config";
 import type { AudioManager } from "../systems/AudioManager";
+import { GameEvents } from "../systems/GameEvents";
 import { toMatterBody } from "../utils/matterUtils";
 import type { Character } from "./Character";
 import { CHAR_HEIGHT } from "./Character";
@@ -52,7 +53,7 @@ export class Jetpack {
     this.#remaining = this.#duration;
 
     const totalSeconds = Math.ceil(this.#duration / 1000);
-    this.#scene.events.emit("jetpack-tick", totalSeconds);
+    this.#scene.events.emit(GameEvents.JETPACK_TICK, totalSeconds);
 
     // Fire a countdown tick every second; end when remaining hits zero.
     this.#timer = this.#scene.time.addEvent({
@@ -61,7 +62,7 @@ export class Jetpack {
       callback: () => {
         this.#remaining = Math.max(0, this.#remaining - 1000);
         const secs = Math.ceil(this.#remaining / 1000);
-        this.#scene.events.emit("jetpack-tick", secs);
+        this.#scene.events.emit(GameEvents.JETPACK_TICK, secs);
         if (this.#remaining <= 0) {
           this.#end();
         }
@@ -186,6 +187,6 @@ export class Jetpack {
     this.#timer?.remove(false);
     this.#timer = null;
     this.#audioManager?.playJetpackEnd();
-    this.#scene.events.emit("jetpack-end");
+    this.#scene.events.emit(GameEvents.JETPACK_END);
   }
 }

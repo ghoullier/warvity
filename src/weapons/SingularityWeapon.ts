@@ -1,5 +1,6 @@
 import { PLANET_CENTER, WEAPON_CONFIG } from "../config";
 import { Singularity } from "../entities/Singularity";
+import { GameEvents } from "../systems/GameEvents";
 import * as ParticleSystem from "../systems/ParticleSystem";
 import { applyExplosion } from "./explosionHelper";
 import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
@@ -30,7 +31,7 @@ registerWeapon({
     );
 
     scene.events.once(
-      "singularity-exploded",
+      GameEvents.SINGULARITY_EXPLODED,
       ({ x, y }: { x: number; y: number }) => {
         audioManager.playExplosion();
         applyExplosion(

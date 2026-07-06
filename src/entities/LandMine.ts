@@ -1,5 +1,6 @@
 import type Phaser from "phaser";
 import { PLANET_CENTER } from "../config";
+import { GameEvents } from "../systems/GameEvents";
 import type { Character } from "./Character";
 
 const MINE_RADIUS = 8;
@@ -87,7 +88,7 @@ export class LandMine {
       this.#lastBlinkTime = now;
       this.#blinkVisible = !this.#blinkVisible;
       this.#drawBlinkDot(this.#blinkVisible);
-      this.#scene.events.emit("mine-beep");
+      this.#scene.events.emit(GameEvents.MINE_BEEP);
     }
   }
 
@@ -187,6 +188,6 @@ export class LandMine {
       },
     });
 
-    this.#scene.events.emit("mine-exploded", { x, y });
+    this.#scene.events.emit(GameEvents.MINE_EXPLODED, { x, y });
   }
 }

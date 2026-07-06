@@ -47,12 +47,4 @@ export const PLANET_STYLES: PlanetStyle[] = [
   },
 ];
 
-export const DEFAULT_PLANET_STYLE: PlanetStyle = PLANET_STYLES[0] ?? {
-  id: "earth",
-  name: "Earth",
-  emoji: "🌍",
-  terrainFill: 0x8b5e3c,
-  terrainOutline: 0x5a3e1b,
-  background: 0x1a1a2e,
-  surfaceAccent: 0x4a7c59,
-};
+export const DEFAULT_PLANET_STYLE: PlanetStyle = PLANET_STYLES[0];

@@ -4,7 +4,7 @@ import { PLANET_CENTER } from "../config";
 import { toMatterBody } from "../utils/matterUtils";
 
 const CHAR_WIDTH = 18;
-const CHAR_HEIGHT = 26;
+export const CHAR_HEIGHT = 26;
 const MOVE_FORCE = 0.0012;
 const JUMP_FORCE = 0.008;
 const HP_BAR_WIDTH = 24;

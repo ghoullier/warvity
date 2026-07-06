@@ -2,6 +2,9 @@
  * Single source of truth for all Phaser EventEmitter event names used in Warvity.
  * Import `GameEvents.X` instead of bare string literals in `.on()` / `.once()` / `.emit()` / `.off()` calls.
  */
+import type { Character } from "../entities/Character";
+import type { GravityMode } from "../entities/GravityBoost";
+
 export const GameEvents = {
   // Turn management
   TURN_START: "turn-start",
@@ -42,3 +45,27 @@ export const GameEvents = {
 } as const;
 
 export type GameEventName = (typeof GameEvents)[keyof typeof GameEvents];
+
+export type GameEventPayloads = {
+  [GameEvents.TURN_START]: { worm: Character; teamName: string };
+  [GameEvents.TURN_END]: undefined;
+  [GameEvents.TIMER_TICK]: number;
+  [GameEvents.FIRE]: { angle: number; power: number; worm: Character };
+  [GameEvents.WEAPON_CHANGED]: string;
+  [GameEvents.PROJECTILE_EXPLODED]: { x: number; y: number };
+  [GameEvents.GRENADE_EXPLODED]: { x: number; y: number };
+  [GameEvents.FLAMETHROWER_DONE]: undefined;
+  [GameEvents.CLUSTER_SPLIT]: undefined;
+  [GameEvents.SUB_MUNITION_EXPLODED]: { x: number; y: number };
+  [GameEvents.CLUSTER_EXPLODED]: undefined;
+  [GameEvents.SINGULARITY_EXPLODED]: { x: number; y: number };
+  [GameEvents.JETPACK_TICK]: number;
+  [GameEvents.JETPACK_END]: undefined;
+  [GameEvents.MINE_BEEP]: undefined;
+  [GameEvents.MINE_EXPLODED]: { x: number; y: number };
+  [GameEvents.GRAVITY_CHANGED]: { mode: GravityMode | null; remaining: number };
+  [GameEvents.TELEPORT_COMPLETE]: undefined;
+  [GameEvents.WORM_DIED]: Character;
+  [GameEvents.HP_CHANGED]: Character;
+  [GameEvents.SHIELD_BLOCKED]: Character;
+};

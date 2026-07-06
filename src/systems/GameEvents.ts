@@ -42,3 +42,54 @@ export const GameEvents = {
 } as const;
 
 export type GameEventName = (typeof GameEvents)[keyof typeof GameEvents];
+
+// ── Payload types ─────────────────────────────────────────────────────────────
+// Keep imports type-only to avoid runtime cycles.
+import type { Character } from "../entities/Character";
+import type { GravityMode } from "../entities/GravityBoost";
+
+/**
+ * Maps every GameEvent key to the payload its listeners receive.
+ * Use `void` for events emitted with no arguments.
+ *
+ * These types are enforced by TypedEventEmitter — the raw Phaser
+ * `.emit()` / `.on()` calls in existing code remain unaffected.
+ */
+export type GameEventPayloads = {
+  // Turn management
+  [GameEvents.TURN_START]: { worm: Character; teamName: string };
+  [GameEvents.TURN_END]: undefined;
+  [GameEvents.TIMER_TICK]: number;
+
+  // Weapons / firing
+  [GameEvents.FIRE]: { angle: number; power: number; worm: Character };
+  [GameEvents.WEAPON_CHANGED]: string;
+
+  // Projectiles & explosions
+  [GameEvents.PROJECTILE_EXPLODED]: { x: number; y: number };
+  [GameEvents.GRENADE_EXPLODED]: { x: number; y: number };
+  [GameEvents.FLAMETHROWER_DONE]: undefined;
+  [GameEvents.CLUSTER_SPLIT]: undefined;
+  [GameEvents.SUB_MUNITION_EXPLODED]: { x: number; y: number };
+  [GameEvents.CLUSTER_EXPLODED]: undefined;
+  [GameEvents.SINGULARITY_EXPLODED]: { x: number; y: number };
+
+  // Jetpack
+  [GameEvents.JETPACK_TICK]: number;
+  [GameEvents.JETPACK_END]: undefined;
+
+  // Mines
+  [GameEvents.MINE_BEEP]: undefined;
+  [GameEvents.MINE_EXPLODED]: { x: number; y: number };
+
+  // Gravity boost
+  [GameEvents.GRAVITY_CHANGED]: { mode: GravityMode | null; remaining: number };
+
+  // Teleporter
+  [GameEvents.TELEPORT_COMPLETE]: undefined;
+
+  // Characters
+  [GameEvents.WORM_DIED]: Character;
+  [GameEvents.HP_CHANGED]: Character;
+  [GameEvents.SHIELD_BLOCKED]: Character;
+};

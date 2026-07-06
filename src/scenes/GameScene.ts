@@ -147,16 +147,11 @@ export class GameScene extends Phaser.Scene {
       this.#teams.push({ name: TEAM_NAMES[t] ?? `Team ${t + 1}`, worms });
       this.#allCharacters.push(...worms);
     }
-    this.#turnManager = new TurnManager(this.#teams.map((team) => team.worms));
+    this.#turnManager = new TurnManager(this.#teams.map((team) => team.worms), this);
     this.#aimingSystem = new AimingSystem(this);
     this.#teleporter = new Teleporter(this, this.#terrain);
 
-    // Forward timer ticks to scene events for UIScene
-    this.#turnManager.on(GameEvents.TIMER_TICK, (remaining: number) => {
-      this.events.emit(GameEvents.TIMER_TICK, remaining);
-    });
-
-    this.#turnManager.on(GameEvents.TURN_START, (worm: Character) => {
+    this.events.on(GameEvents.TURN_START, (worm: Character) => {
       console.log(
         `[TurnManager] Turn started — active worm: ${worm.name} (team ${this.#turnManager.getActiveTeamIndex()})`,
       );
@@ -165,10 +160,6 @@ export class GameScene extends Phaser.Scene {
       this.#cameraController.follow(worm);
       this.#activateCurrentWeapon(worm);
       this.#turnManager.startTimer(this);
-      // Forward to scene events so UIScene can react
-      const teamName =
-        this.#teams[this.#turnManager.getActiveTeamIndex()]?.name ?? "";
-      this.events.emit(GameEvents.TURN_START, worm, teamName);
     });
 
     // AimingSystem fire event → dispatch to the active weapon

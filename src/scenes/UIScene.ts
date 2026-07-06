@@ -125,8 +125,8 @@ export class UIScene extends Phaser.Scene {
     const ge = game.events;
     ge.on(
       GameEvents.TURN_START,
-      (worm: Character, teamName: string) => {
-        this.#applyTurnUpdate(worm, teamName);
+      (worm: Character) => {
+        this.#applyTurnUpdate(worm, game.activeTeamName);
         this.#applyTimerTick(30);
       },
       this,

@@ -38,6 +38,8 @@ export class UIScene extends Phaser.Scene {
   #weaponText!: Phaser.GameObjects.Text;
   #muteBtn!: Phaser.GameObjects.Text;
   #gravityText!: Phaser.GameObjects.Text;
+  #musicToast!: Phaser.GameObjects.Text;
+  #musicToastTimer: ReturnType<typeof setTimeout> | null = null;
   #panelBg!: Phaser.GameObjects.Graphics;
   #wormRows = new Map<string, WormRow>();
   #audioManager: AudioManager | null = null;
@@ -113,6 +115,18 @@ export class UIScene extends Phaser.Scene {
       .setDepth(20)
       .setVisible(false);
 
+    // ── Music toggle toast (center screen, fades out) ──────────────────────
+    this.#musicToast = this.add
+      .text(CANVAS_SIZE / 2, CANVAS_SIZE / 2 - 40, "", {
+        fontSize: "20px",
+        color: "#ffffff",
+        backgroundColor: "#00000099",
+        padding: { x: 12, y: 6 },
+      })
+      .setOrigin(0.5, 0.5)
+      .setDepth(30)
+      .setVisible(false);
+
     // ── HP panel (top right) ──────────────────────────────────────────────────
     this.#panelBg = this.add.graphics().setDepth(19);
     this.#buildHpPanel(game.teams);
@@ -163,9 +177,18 @@ export class UIScene extends Phaser.Scene {
       this,
     );
     ge.on(GameEvents.JETPACK_END, () => this.#applyJetpackEnd(), this);
+    ge.on(
+      GameEvents.MUSIC_TOGGLED,
+      (muted: boolean) => this.#showMusicToast(muted),
+      this,
+    );
   }
 
   override shutdown(): void {
+    if (this.#musicToastTimer !== null) {
+      clearTimeout(this.#musicToastTimer);
+      this.#musicToastTimer = null;
+    }
     // Remove listeners keyed by this scene context so they don't leak
     const game = this.scene.get(SceneKeys.Game) as GameScene | null;
     if (game) {
@@ -177,6 +200,7 @@ export class UIScene extends Phaser.Scene {
       game.events.off(GameEvents.GRAVITY_CHANGED, undefined, this);
       game.events.off(GameEvents.JETPACK_TICK, undefined, this);
       game.events.off(GameEvents.JETPACK_END, undefined, this);
+      game.events.off(GameEvents.MUSIC_TOGGLED, undefined, this);
     }
     this.#wormRows.clear();
   }
@@ -309,5 +333,16 @@ export class UIScene extends Phaser.Scene {
   /** Restore timer display after jetpack ends (next turn-start will repopulate). */
   #applyJetpackEnd(): void {
     this.#timerText.setColor("#00dd00");
+  }
+
+  /** Briefly show "Music: ON" or "Music: OFF" in the center of the screen. */
+  #showMusicToast(muted: boolean): void {
+    this.#musicToast.setText(muted ? "🔇 Music: OFF" : "🎵 Music: ON");
+    this.#musicToast.setVisible(true).setAlpha(1);
+    if (this.#musicToastTimer !== null) clearTimeout(this.#musicToastTimer);
+    this.#musicToastTimer = setTimeout(() => {
+      this.#musicToast.setVisible(false);
+      this.#musicToastTimer = null;
+    }, 1800);
   }
 }

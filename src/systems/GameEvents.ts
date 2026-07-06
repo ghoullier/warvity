@@ -39,6 +39,9 @@ export const GameEvents = {
   WORM_DIED: "worm-died",
   HP_CHANGED: "hp-changed",
   SHIELD_BLOCKED: "shield-blocked",
+
+  // Music
+  MUSIC_TOGGLED: "music-toggled",
 } as const;
 
 export type GameEventName = (typeof GameEvents)[keyof typeof GameEvents];
@@ -92,4 +95,7 @@ export type GameEventPayloads = {
   [GameEvents.WORM_DIED]: Character;
   [GameEvents.HP_CHANGED]: Character;
   [GameEvents.SHIELD_BLOCKED]: Character;
+
+  // Music
+  [GameEvents.MUSIC_TOGGLED]: boolean; // true = muted
 };

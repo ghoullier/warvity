@@ -1,9 +1,13 @@
 import type Phaser from "phaser";
+import type { PlanetStyle } from "../config/PlanetStyles";
 
-/** Pentatonic scale frequencies (C4 base, two octaves) */
-const PENTATONIC: number[] = [
-  261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 587.33, 659.25, 784.0, 880.0,
-];
+// ── Per-planet pentatonic scales (Hz) ─────────────────────────────────────────
+const EARTH_SCALE = [261, 294, 329, 392, 440] as const; // C major pent – upbeat
+const MOON_SCALE = [293, 329, 370, 440, 493] as const; // D minor pent – sparse
+const LAVA_TONES = [196, 277] as const; // tritone pair – aggressive
+const ICE_SCALE = [523, 587, 659, 784, 880] as const; // high-register pent – crystalline
+
+const MUSIC_GAIN_VALUE = 0.08; // quiet background level
 
 /**
  * Generates all game sounds procedurally via the Web Audio API.
@@ -12,9 +16,11 @@ const PENTATONIC: number[] = [
 export class AudioManager {
   readonly #ctx: AudioContext;
   readonly #master: GainNode;
+  readonly #musicGain: GainNode; // separate gain for music vs SFX
   #muted = false;
-  #musicTimeout: ReturnType<typeof setTimeout> | null = null;
-  #musicRunning = false;
+  #musicNodes: AudioNode[] = [];
+  #musicInterval: ReturnType<typeof setInterval> | null = null;
+  #musicMuted = false;
 
   constructor(scene: Phaser.Scene) {
     const soundManager = scene.sound as Phaser.Sound.WebAudioSoundManager;
@@ -23,6 +29,10 @@ export class AudioManager {
     this.#master = this.#ctx.createGain();
     this.#master.gain.value = 0.6;
     this.#master.connect(this.#ctx.destination);
+
+    this.#musicGain = this.#ctx.createGain();
+    this.#musicGain.gain.value = MUSIC_GAIN_VALUE;
+    this.#musicGain.connect(this.#master);
   }
 
   // ──────────────────────────────── public API ──────────────────────────────────
@@ -199,22 +209,61 @@ export class AudioManager {
   }
 
   /**
-   * Start the procedural background music loop.
-   * Plays random notes from a pentatonic scale with 1–3 s gaps.
+   * Start the looping per-planet music theme.
+   * Calling while music is already playing stops the previous theme first.
    */
-  startMusic(): void {
-    if (this.#musicRunning) return;
-    this.#musicRunning = true;
-    this.#scheduleNextNote();
+  startMusic(style: PlanetStyle): void {
+    this.stopMusic();
+    switch (style.id) {
+      case "earth":
+        this.#startEarthTheme();
+        break;
+      case "moon":
+        this.#startMoonTheme();
+        break;
+      case "lava":
+        this.#startLavaTheme();
+        break;
+      case "ice":
+        this.#startIceTheme();
+        break;
+      default:
+        this.#startEarthTheme();
+    }
   }
 
-  /** Stop the background music. */
+  /** Stop the background music and clean up all music nodes. */
   stopMusic(): void {
-    this.#musicRunning = false;
-    if (this.#musicTimeout !== null) {
-      clearTimeout(this.#musicTimeout);
-      this.#musicTimeout = null;
+    if (this.#musicInterval !== null) {
+      clearInterval(this.#musicInterval);
+      this.#musicInterval = null;
     }
+    for (const node of this.#musicNodes) {
+      try {
+        node.disconnect();
+      } catch {}
+    }
+    this.#musicNodes = [];
+  }
+
+  /**
+   * Toggle music mute on/off with a smooth gain fade.
+   * Returns the new muted state (true = muted).
+   */
+  toggleMusicMute(): boolean {
+    this.#musicMuted = !this.#musicMuted;
+    const now = this.#ctx.currentTime;
+    this.#musicGain.gain.cancelScheduledValues(now);
+    this.#musicGain.gain.setValueAtTime(this.#musicGain.gain.value, now);
+    this.#musicGain.gain.linearRampToValueAtTime(
+      this.#musicMuted ? 0 : MUSIC_GAIN_VALUE,
+      now + 0.3,
+    );
+    return this.#musicMuted;
+  }
+
+  get isMusicMuted(): boolean {
+    return this.#musicMuted;
   }
 
   /**
@@ -370,7 +419,153 @@ export class AudioManager {
 
   // ──────────────────────────────── private helpers ─────────────────────────────
 
-  /** Disconnect all given nodes `durationMs + 100` ms after they were started. */
+  // ── Music themes ──────────────────────────────────────────────────────────────
+
+  /** Earth: upbeat C-major pentatonic random walk, triangle, 280 ms steps. */
+  #startEarthTheme(): void {
+    let noteIdx = Math.floor(EARTH_SCALE.length / 2);
+    this.#musicInterval = setInterval(() => {
+      if (this.#musicMuted) return;
+      const step = Math.random() < 0.5 ? -1 : 1;
+      noteIdx = Math.max(0, Math.min(EARTH_SCALE.length - 1, noteIdx + step));
+      // biome-ignore lint/style/noNonNullAssertion: index bounded by EARTH_SCALE.length
+      const freq = EARTH_SCALE[noteIdx]!;
+      this.#playMusicOsc(
+        "triangle",
+        freq,
+        (gain, now) => {
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.9, now + 0.02);
+          gain.gain.linearRampToValueAtTime(0, now + 0.2);
+        },
+        220,
+      );
+    }, 280);
+  }
+
+  /** Moon: sparse D-minor pentatonic, sine, slow attack, 40% beat skip. */
+  #startMoonTheme(): void {
+    this.#musicInterval = setInterval(() => {
+      if (this.#musicMuted) return;
+      if (Math.random() < 0.4) return;
+      // biome-ignore lint/style/noNonNullAssertion: index bounded by MOON_SCALE.length
+      const freq = MOON_SCALE[Math.floor(Math.random() * MOON_SCALE.length)]!;
+      this.#playMusicOsc(
+        "sine",
+        freq,
+        (gain, now) => {
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.9, now + 0.3); // slow attack
+          gain.gain.linearRampToValueAtTime(0, now + 0.55); // release
+        },
+        580,
+      );
+    }, 600);
+  }
+
+  /** Lava: aggressive tritone alternation, sawtooth through WaveShaper distortion. */
+  #startLavaTheme(): void {
+    const shaper = this.#makeDistortion(200);
+    shaper.connect(this.#musicGain);
+    this.#musicNodes.push(shaper);
+
+    let toneIdx = 0;
+    this.#musicInterval = setInterval(() => {
+      if (this.#musicMuted) return;
+      // biome-ignore lint/style/noNonNullAssertion: index is 0 or 1, both valid
+      const freq = LAVA_TONES[toneIdx]!;
+      toneIdx = 1 - toneIdx;
+      this.#playMusicOsc(
+        "sawtooth",
+        freq,
+        (gain, now) => {
+          gain.gain.setValueAtTime(0.9, now);
+          gain.gain.linearRampToValueAtTime(0, now + 0.14);
+        },
+        160,
+        shaper,
+      );
+    }, 180);
+  }
+
+  /** Ice: high-register pentatonic, triangle with long delay-feedback reverb tail. */
+  #startIceTheme(): void {
+    const delay = this.#ctx.createDelay(1.0);
+    delay.delayTime.value = 0.3;
+    const feedbackGain = this.#ctx.createGain();
+    feedbackGain.gain.value = 0.45;
+    const wetGain = this.#ctx.createGain();
+    wetGain.gain.value = 0.5;
+
+    delay.connect(feedbackGain);
+    feedbackGain.connect(delay); // feedback loop
+    delay.connect(wetGain);
+    wetGain.connect(this.#musicGain);
+    this.#musicNodes.push(delay, feedbackGain, wetGain);
+
+    this.#musicInterval = setInterval(() => {
+      if (this.#musicMuted) return;
+      // biome-ignore lint/style/noNonNullAssertion: index bounded by ICE_SCALE.length
+      const freq = ICE_SCALE[Math.floor(Math.random() * ICE_SCALE.length)]!;
+      const now = this.#ctx.currentTime;
+      const osc = this.#ctx.createOscillator();
+      const noteGain = this.#ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, now);
+      noteGain.gain.setValueAtTime(0, now);
+      noteGain.gain.linearRampToValueAtTime(0.9, now + 0.05);
+      noteGain.gain.linearRampToValueAtTime(0, now + 0.35);
+      osc.connect(noteGain);
+      noteGain.connect(this.#musicGain); // dry path
+      noteGain.connect(delay); // wet path into reverb
+      osc.start(now);
+      osc.stop(now + 0.4);
+      this.#scheduleDisconnect(400, osc, noteGain);
+    }, 400);
+  }
+
+  /**
+   * Build a soft-clipping WaveShaper curve.
+   * `amount` controls the drive (higher = more distortion).
+   */
+  #makeDistortion(amount: number): WaveShaperNode {
+    const ws = this.#ctx.createWaveShaper();
+    const n = 256;
+    const curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = (i * 2) / n - 1;
+      curve[i] = ((Math.PI + amount) * x) / (Math.PI + amount * Math.abs(x));
+    }
+    ws.curve = curve;
+    return ws;
+  }
+
+  /**
+   * Play a single music note through `#musicGain` (or an alternate destination).
+   * Auto-disconnects after `durationMs`.
+   */
+  #playMusicOsc(
+    type: OscillatorType,
+    freq: number,
+    gainEnvelope: (gain: GainNode, now: number) => void,
+    durationMs: number,
+    destination: AudioNode = this.#musicGain,
+  ): void {
+    const now = this.#ctx.currentTime;
+    const osc = this.#ctx.createOscillator();
+    const gain = this.#ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, now);
+    gainEnvelope(gain, now);
+    osc.connect(gain);
+    gain.connect(destination);
+    osc.start(now);
+    osc.stop(now + durationMs / 1000);
+    this.#scheduleDisconnect(durationMs, osc, gain);
+  }
+
+  // ── SFX / shared helpers ───────────────────────────────────────────────────
+
   #scheduleDisconnect(durationMs: number, ...nodes: AudioNode[]): void {
     setTimeout(() => {
       for (const n of nodes) {
@@ -459,34 +654,5 @@ export class AudioManager {
     source.start(now);
     source.stop(now + durationSec);
     this.#scheduleDisconnect(durationMs, ...nodes);
-  }
-
-  #scheduleNextNote(): void {
-    if (!this.#musicRunning) return;
-
-    const delayMs = 1000 + Math.random() * 2000;
-    this.#musicTimeout = setTimeout(() => {
-      if (!this.#musicRunning) return;
-      this.#playMusicNote();
-      this.#scheduleNextNote();
-    }, delayMs);
-  }
-
-  #playMusicNote(): void {
-    if (this.#muted) return;
-    // biome-ignore lint/style/noNonNullAssertion: index is bounded by PENTATONIC.length
-    const freq = PENTATONIC[Math.floor(Math.random() * PENTATONIC.length)]!;
-    const duration = 0.4 + Math.random() * 0.3;
-    this.#playOsc(
-      "triangle",
-      freq,
-      (gain, now) => {
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.15, now + 0.05);
-        gain.gain.linearRampToValueAtTime(0.1, now + duration * 0.6);
-        gain.gain.linearRampToValueAtTime(0, now + duration);
-      },
-      duration * 1000,
-    );
   }
 }

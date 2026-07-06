@@ -6,7 +6,9 @@ import { GameEvents } from "../systems/GameEvents";
 import type { TerrainManager } from "../systems/TerrainManager";
 import { toMatterBody, toMatterEngine } from "../utils/matterUtils";
 
-const PROJECTILE_RADIUS = 4;
+const PROJECTILE_RADIUS = 6;
+const TRAIL_COLOR = 0xff8800;
+const TRAIL_MAX = 6;
 const EXPLOSION_VISUAL_RADIUS = 60;
 const EXPLOSION_DURATION = 450;
 
@@ -32,6 +34,7 @@ export class Projectile {
   readonly #camera: CameraController;
   #active = true;
   #collisionHandler: CollisionHandler | null = null;
+  #trail: Array<{ x: number; y: number }> = [];
 
   constructor(
     scene: Phaser.Scene,
@@ -58,8 +61,7 @@ export class Projectile {
     });
 
     this.#graphics = scene.add.graphics();
-    this.#graphics.fillStyle(0xffdd00);
-    this.#graphics.fillCircle(0, 0, PROJECTILE_RADIUS);
+    this.#redraw();
 
     this.#camera.followProjectile(this);
     this.#setupCollisionDetection();
@@ -75,7 +77,12 @@ export class Projectile {
   update(): void {
     if (!this.#active) return;
 
+    // Record position for trail before syncing graphics
+    this.#trail.push({ x: this.body.position.x, y: this.body.position.y });
+    if (this.#trail.length > TRAIL_MAX) this.#trail.shift();
+
     this.#graphics.setPosition(this.body.position.x, this.body.position.y);
+    this.#redraw();
 
     const dx = this.body.position.x - PLANET_CENTER.x;
     const dy = this.body.position.y - PLANET_CENTER.y;
@@ -135,6 +142,27 @@ export class Projectile {
   }
 
   // ──────────────────────────────── private helpers ────────────────────────────
+
+  #redraw(): void {
+    this.#graphics.clear();
+
+    // Draw trail (oldest = most transparent, smallest)
+    for (let i = 0; i < this.#trail.length; i++) {
+      const t = this.#trail[i];
+      const alpha = (i / this.#trail.length) * 0.4;
+      const radius = 2 * (i / this.#trail.length) + 1;
+      this.#graphics.fillStyle(TRAIL_COLOR, alpha);
+      this.#graphics.fillCircle(
+        t.x - this.body.position.x,
+        t.y - this.body.position.y,
+        radius,
+      );
+    }
+
+    // Main projectile dot
+    this.#graphics.fillStyle(0xffdd00, 1);
+    this.#graphics.fillCircle(0, 0, PROJECTILE_RADIUS);
+  }
 
   #setupCollisionDetection(): void {
     this.#collisionHandler = (event: Matter.IEventCollision<Matter.Engine>) => {

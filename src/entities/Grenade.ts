@@ -4,6 +4,8 @@ import { GameEvents } from "../systems/GameEvents";
 import { toMatterBody } from "../utils/matterUtils";
 
 const GRENADE_RADIUS = 5;
+const GRENADE_TRAIL_COLOR = 0x66ff44;
+const TRAIL_MAX = 6;
 const MAX_BOUNCES = 3;
 const FUSE_DURATION = 3; // seconds
 const EXPLOSION_VISUAL_RADIUS = 50;
@@ -29,6 +31,7 @@ export class Grenade {
   #fuseCount = FUSE_DURATION;
   #countdownText: Phaser.GameObjects.Text | null = null;
   #fuseTimer: Phaser.Time.TimerEvent | null = null;
+  #trail: Array<{ x: number; y: number }> = [];
 
   constructor(
     scene: Phaser.Scene,
@@ -51,8 +54,7 @@ export class Grenade {
     });
 
     this.#graphics = scene.add.graphics();
-    this.#graphics.fillStyle(0x33cc33);
-    this.#graphics.fillCircle(0, 0, GRENADE_RADIUS);
+    this.#redraw(x, y);
 
     this.#countdownText = scene.add
       .text(x, y - GRENADE_RADIUS - 10, `${FUSE_DURATION}`, {
@@ -114,8 +116,33 @@ export class Grenade {
   update(): void {
     if (!this.#active) return;
     const { x, y } = this.body.position;
+
+    // Record position for trail
+    this.#trail.push({ x, y });
+    if (this.#trail.length > TRAIL_MAX) this.#trail.shift();
+
     this.#graphics.setPosition(x, y);
+    this.#redraw(x, y);
     this.#countdownText?.setPosition(x, y - GRENADE_RADIUS - 10);
+  }
+
+  // ──────────────────────────────── private helpers ────────────────────────────
+
+  #redraw(cx: number, cy: number): void {
+    this.#graphics.clear();
+
+    // Draw trail (oldest = most transparent, smallest)
+    for (let i = 0; i < this.#trail.length; i++) {
+      const t = this.#trail[i];
+      const alpha = (i / this.#trail.length) * 0.4;
+      const radius = 2 * (i / this.#trail.length) + 1;
+      this.#graphics.fillStyle(GRENADE_TRAIL_COLOR, alpha);
+      this.#graphics.fillCircle(t.x - cx, t.y - cy, radius);
+    }
+
+    // Main grenade dot
+    this.#graphics.fillStyle(0x33cc33, 1);
+    this.#graphics.fillCircle(0, 0, GRENADE_RADIUS);
   }
 
   /** Explosion visual, camera shake, and event emission. Terrain and damage are handled by GameScene. */

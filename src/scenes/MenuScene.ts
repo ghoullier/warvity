@@ -26,12 +26,16 @@ const PLANET_PATCHES: Array<{ a: number; d: number; s: number }> = [
  * Lets the player choose the number of teams (2–4) and worms per team (1–4),
  * then launches GameScene with that configuration.
  */
+const ROUND_OPTIONS = [1, 3, 5] as const;
+
 export class MenuScene extends Phaser.Scene {
   #teams = 2;
   #wormsPerTeam = 1;
+  #roundOptionIndex = 0;
   #planetStyle: PlanetStyle = PLANET_STYLES[0] ?? DEFAULT_PLANET_STYLE;
   #teamsText!: Phaser.GameObjects.Text;
   #wormsText!: Phaser.GameObjects.Text;
+  #roundsText!: Phaser.GameObjects.Text;
   #planetBaseGfx!: Phaser.GameObjects.Graphics;
   #planetGfx!: Phaser.GameObjects.Graphics;
   #planetRingGfx!: Phaser.GameObjects.Graphics;
@@ -140,20 +144,48 @@ export class MenuScene extends Phaser.Scene {
       this.#changeWorms(1),
     );
 
-    // Planet style selector
+    // Best of N rounds selector
     this.add
-      .text(CANVAS_SIZE / 2, 472, "PLANET", {
+      .text(CANVAS_SIZE / 2, 472, "BEST OF:", {
         fontSize: "20px",
         color: "#aaaacc",
         fontStyle: "bold",
       })
       .setOrigin(0.5);
 
-    this.#buildStyleSwatches(514);
+    this.#makeSpinnerButton(CANVAS_SIZE / 2 - 80, 516, "◀", () =>
+      this.#changeRounds(-1),
+    );
+    this.#roundsText = this.add
+      .text(
+        CANVAS_SIZE / 2,
+        516,
+        String(ROUND_OPTIONS[this.#roundOptionIndex] ?? 1),
+        {
+          fontSize: "38px",
+          color: "#ffffff",
+          fontStyle: "bold",
+        },
+      )
+      .setOrigin(0.5);
+    this.#makeSpinnerButton(CANVAS_SIZE / 2 + 80, 516, "▶", () =>
+      this.#changeRounds(1),
+    );
+
+    // Planet style selector
+    this.add
+      .text(CANVAS_SIZE / 2, 574, "PLANET", {
+        fontSize: "20px",
+        color: "#aaaacc",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
+    this.#buildStyleSwatches(616);
 
     // PLAY button
     const playBtn = this.add
-      .text(CANVAS_SIZE / 2, 590, "▶  PLAY", {
+      .text(CANVAS_SIZE / 2, 686, "▶  PLAY", {
         fontSize: "38px",
         color: "#ffff00",
         fontStyle: "bold",
@@ -170,16 +202,20 @@ export class MenuScene extends Phaser.Scene {
       playBtn.setStyle({ color: "#ffff00", backgroundColor: "#333344" });
     });
     playBtn.on("pointerdown", () => {
+      const rounds = ROUND_OPTIONS[this.#roundOptionIndex] ?? 1;
       this.scene.start(SceneKeys.Game, {
         teams: this.#teams,
         wormsPerTeam: this.#wormsPerTeam,
         planetStyle: this.#planetStyle,
+        rounds,
+        currentRound: 1,
+        roundWins: Array.from({ length: this.#teams }, () => 0),
       });
     });
 
     // HOW TO PLAY button
     const howBtn = this.add
-      .text(CANVAS_SIZE / 2, 670, "HOW TO PLAY", {
+      .text(CANVAS_SIZE / 2, 766, "HOW TO PLAY", {
         fontSize: "20px",
         color: "#8888bb",
         backgroundColor: "#1a1a33",
@@ -264,6 +300,16 @@ export class MenuScene extends Phaser.Scene {
   #changeWorms(delta: number): void {
     this.#wormsPerTeam = Math.max(1, Math.min(4, this.#wormsPerTeam + delta));
     this.#wormsText.setText(String(this.#wormsPerTeam));
+  }
+
+  #changeRounds(delta: number): void {
+    this.#roundOptionIndex = Math.max(
+      0,
+      Math.min(ROUND_OPTIONS.length - 1, this.#roundOptionIndex + delta),
+    );
+    this.#roundsText.setText(
+      String(ROUND_OPTIONS[this.#roundOptionIndex] ?? 1),
+    );
   }
 
   #showHowToPlay(): void {

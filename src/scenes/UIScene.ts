@@ -40,6 +40,7 @@ export class UIScene extends Phaser.Scene {
   #gravityText!: Phaser.GameObjects.Text;
   #musicToast!: Phaser.GameObjects.Text;
   #musicToastTimer: ReturnType<typeof setTimeout> | null = null;
+  #roundText!: Phaser.GameObjects.Text;
   #panelBg!: Phaser.GameObjects.Graphics;
   #wormRows = new Map<string, WormRow>();
   #audioManager: AudioManager | null = null;
@@ -126,6 +127,17 @@ export class UIScene extends Phaser.Scene {
       .setOrigin(0.5, 0.5)
       .setDepth(30)
       .setVisible(false);
+    // ── Round indicator (top center, below timer) ─────────────────────────────
+    this.#roundText = this.add
+      .text(CANVAS_SIZE / 2, 62, "", {
+        fontSize: "14px",
+        color: "#ccccff",
+        backgroundColor: "#00000099",
+        padding: { x: 8, y: 4 },
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(20);
+    this.#applyRoundIndicator(game);
 
     // ── HP panel (top right) ──────────────────────────────────────────────────
     this.#panelBg = this.add.graphics().setDepth(19);
@@ -344,5 +356,26 @@ export class UIScene extends Phaser.Scene {
       this.#musicToast.setVisible(false);
       this.#musicToastTimer = null;
     }, 1800);
+  }
+
+  /** Render the round counter and win dots (only visible in multi-round mode). */
+  #applyRoundIndicator(game: GameScene): void {
+    const total = game.totalRounds;
+    if (total <= 1) {
+      this.#roundText.setVisible(false);
+      return;
+    }
+    const current = game.currentRound;
+    const wins = game.roundWins;
+    const winsNeeded = Math.ceil(total / 2);
+    const dots = wins
+      .map((w) => {
+        const filled = "●".repeat(w);
+        const empty = "○".repeat(winsNeeded - w);
+        return `${filled}${empty}`;
+      })
+      .join("  ");
+    this.#roundText.setText(`Round ${current}/${total}  ${dots}`);
+    this.#roundText.setVisible(true);
   }
 }

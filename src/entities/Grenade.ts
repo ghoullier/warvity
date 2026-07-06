@@ -1,5 +1,6 @@
 import Matter from "matter-js";
 import type Phaser from "phaser";
+import { GameEvents } from "../systems/GameEvents";
 import { toMatterBody } from "../utils/matterUtils";
 
 const GRENADE_RADIUS = 5;
@@ -168,6 +169,6 @@ export class Grenade {
     this.#scene.matter.world.remove(this.body, false);
     this.#graphics.destroy();
 
-    this.#scene.events.emit("grenade-exploded", { x, y });
+    this.#scene.events.emit(GameEvents.GRENADE_EXPLODED, { x, y });
   }
 }

@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { GRAVITY_STRENGTH, PLANET_CENTER } from "../config";
 import type { Character } from "../entities/Character";
 import { getWeapon } from "../weapons/WeaponRegistry";
+import { GameEvents } from "./GameEvents";
 
 const ARROW_LENGTH = 55;
 const ARROW_HEAD_SIZE = 10;
@@ -283,7 +284,7 @@ export class AimingSystem {
     this.#charging = false;
     this.#power = 0;
 
-    this.#scene.events.emit("fire", { angle, power, worm });
+    this.#scene.events.emit(GameEvents.FIRE, { angle, power, worm });
 
     // Deactivate aiming after firing; the TurnManager will re-activate on next turn
     this.deactivate();

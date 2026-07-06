@@ -1,5 +1,6 @@
 import { GRAVITY_STRENGTH, PLANET_CENTER, WEAPON_CONFIG } from "../config";
 import { Jetpack } from "../entities/Jetpack";
+import { GameEvents } from "../systems/GameEvents";
 import { applyRadialGravity } from "../systems/GravitySystem";
 import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
 
@@ -20,7 +21,7 @@ registerWeapon({
     activeJetpack = jetpack;
     jetpack.activate();
 
-    ctx.scene.events.once("jetpack-end", () => {
+    ctx.scene.events.once(GameEvents.JETPACK_END, () => {
       activeJetpack = null;
       ctx.nextTurn();
     });

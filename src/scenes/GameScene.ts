@@ -12,6 +12,7 @@ import { Teleporter } from "../entities/Teleporter";
 import { AimingSystem } from "../systems/AimingSystem";
 import { AudioManager } from "../systems/AudioManager";
 import { CameraController } from "../systems/CameraController";
+import { GameEvents } from "../systems/GameEvents";
 import { applyRadialGravity } from "../systems/GravitySystem";
 import { TerrainManager } from "../systems/TerrainManager";
 import { TurnManager } from "../systems/TurnManager";
@@ -151,11 +152,11 @@ export class GameScene extends Phaser.Scene {
     this.#teleporter = new Teleporter(this, this.#terrain);
 
     // Forward timer ticks to scene events for UIScene
-    this.#turnManager.on("timer-tick", (remaining: number) => {
-      this.events.emit("timer-tick", remaining);
+    this.#turnManager.on(GameEvents.TIMER_TICK, (remaining: number) => {
+      this.events.emit(GameEvents.TIMER_TICK, remaining);
     });
 
-    this.#turnManager.on("turn-start", (worm: Character) => {
+    this.#turnManager.on(GameEvents.TURN_START, (worm: Character) => {
       console.log(
         `[TurnManager] Turn started — active worm: ${worm.name} (team ${this.#turnManager.getActiveTeamIndex()})`,
       );
@@ -167,12 +168,12 @@ export class GameScene extends Phaser.Scene {
       // Forward to scene events so UIScene can react
       const teamName =
         this.#teams[this.#turnManager.getActiveTeamIndex()]?.name ?? "";
-      this.events.emit("turn-start", worm, teamName);
+      this.events.emit(GameEvents.TURN_START, worm, teamName);
     });
 
     // AimingSystem fire event → dispatch to the active weapon
     this.events.on(
-      "fire",
+      GameEvents.FIRE,
       ({
         angle,
         power,
@@ -189,7 +190,7 @@ export class GameScene extends Phaser.Scene {
     );
 
     // When a teleport completes: advance the turn
-    this.events.on("teleport-complete", () => {
+    this.events.on(GameEvents.TELEPORT_COMPLETE, () => {
       this.#turnManager.nextTurn();
       this.#cameraController.returnToWorm(this.#turnManager.getCurrentWorm());
     });
@@ -219,7 +220,7 @@ export class GameScene extends Phaser.Scene {
       const ids = weapons.map((w) => w.id);
       const idx = ids.indexOf(this.#activeWeapon);
       this.#activeWeapon = ids[(idx + 1) % ids.length] ?? "bazooka";
-      this.events.emit("weapon-changed", this.#activeWeapon);
+      this.events.emit(GameEvents.WEAPON_CHANGED, this.#activeWeapon);
       this.#activateCurrentWeapon(this.#turnManager.getCurrentWorm());
     });
 
@@ -251,11 +252,11 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Worm death events
-    this.events.on("shield-blocked", () => {
+    this.events.on(GameEvents.SHIELD_BLOCKED, () => {
       this.#audioManager.playShieldBlock();
     });
 
-    this.events.on("worm-died", (_worm: Character) => {
+    this.events.on(GameEvents.WORM_DIED, (_worm: Character) => {
       this.#audioManager.playDeath();
       for (const team of this.#teams) {
         if (team.worms.every((c) => !c.isAlive())) {

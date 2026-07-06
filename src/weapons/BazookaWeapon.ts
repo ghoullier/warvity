@@ -1,5 +1,6 @@
 import { PLANET_CENTER, WEAPON_CONFIG } from "../config";
 import { Projectile } from "../entities/Projectile";
+import { GameEvents } from "../systems/GameEvents";
 import * as ParticleSystem from "../systems/ParticleSystem";
 import { applyExplosion } from "./explosionHelper";
 import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
@@ -40,7 +41,7 @@ registerWeapon({
     );
 
     scene.events.once(
-      "projectile-exploded",
+      GameEvents.PROJECTILE_EXPLODED,
       ({ x, y }: { x: number; y: number }) => {
         audioManager.playExplosion();
         applyExplosion(

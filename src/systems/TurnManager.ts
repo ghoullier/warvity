@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import type { Character } from "../entities/Character";
+import { GameEvents } from "./GameEvents";
 
 const TURN_DURATION_SECONDS = 30;
 
@@ -79,7 +80,7 @@ export class TurnManager extends Phaser.Events.EventEmitter {
       callback: () => {
         if (this.#stopped) return;
         this.#remainingSeconds -= 1;
-        this.emit("timer-tick", this.#remainingSeconds);
+        this.emit(GameEvents.TIMER_TICK, this.#remainingSeconds);
         if (this.#remainingSeconds <= 0) {
           this.nextTurn();
         }
@@ -115,7 +116,7 @@ export class TurnManager extends Phaser.Events.EventEmitter {
   nextTurn(): void {
     if (this.#stopped) return;
     this.stopTimer();
-    this.emit("turn-end");
+    this.emit(GameEvents.TURN_END);
     this.#deactivateCurrentWorm();
 
     // Advance this team's worm pointer for when they play again
@@ -128,7 +129,7 @@ export class TurnManager extends Phaser.Events.EventEmitter {
     this.#currentTeamIndex = (this.#currentTeamIndex + 1) % this.#teams.length;
 
     this.#activateCurrentWorm();
-    this.emit("turn-start", this.getCurrentWorm());
+    this.emit(GameEvents.TURN_START, this.getCurrentWorm());
   }
 
   // ──────────────────────────────── private helpers ────────────────────────────

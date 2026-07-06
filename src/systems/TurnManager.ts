@@ -1,4 +1,4 @@
-import Phaser from "phaser";
+import type Phaser from "phaser";
 import type { Character } from "../entities/Character";
 import { GameEvents } from "./GameEvents";
 

@@ -147,7 +147,10 @@ export class GameScene extends Phaser.Scene {
       this.#teams.push({ name: TEAM_NAMES[t] ?? `Team ${t + 1}`, worms });
       this.#allCharacters.push(...worms);
     }
-    this.#turnManager = new TurnManager(this.#teams.map((team) => team.worms), this);
+    this.#turnManager = new TurnManager(
+      this.#teams.map((team) => team.worms),
+      this,
+    );
     this.#aimingSystem = new AimingSystem(this);
     this.#teleporter = new Teleporter(this, this.#terrain);
 
@@ -284,7 +287,7 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch(SceneKeys.UI);
   }
 
-  override update(_time: number, delta: number): void {
+  override update(time: number, delta: number): void {
     // Radial gravity for all dynamic bodies (multiplier modified by GravityBoost)
     const bodies = this.matter.world.getAllBodies();
     applyRadialGravity(
@@ -319,7 +322,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Sync visuals for all characters across all teams
-    for (const worm of this.#allCharacters) worm.update();
+    for (const worm of this.#allCharacters) worm.update(time);
   }
 
   override shutdown(): void {

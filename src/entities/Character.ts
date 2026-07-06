@@ -34,6 +34,7 @@ export class Character {
   readonly #indicator: Phaser.GameObjects.Graphics;
   readonly #color: number;
   readonly #scene: Phaser.Scene;
+  #weaponText: Phaser.GameObjects.Text | null = null;
 
   get color(): number {
     return this.#color;
@@ -107,21 +108,50 @@ export class Character {
   #drawSprite(): void {
     const hw = CHAR_WIDTH / 2;
     const hh = CHAR_HEIGHT / 2;
+    const headY = -hh - 6;
+    const eyeY = -hh - 9;
 
-    this.#graphics.clear();
+    const gfx = this.#graphics;
+    gfx.clear();
 
-    // Body
-    this.#graphics.fillStyle(this.#color);
-    this.#graphics.fillRect(-hw, -hh, CHAR_WIDTH, CHAR_HEIGHT);
+    // Compute a darker shade of team color for helmet and shadow
+    const r = (this.#color >> 16) & 0xff;
+    const g = (this.#color >> 8) & 0xff;
+    const b = this.#color & 0xff;
+    const darkenColor =
+      (Math.floor(r * 0.7) << 16) |
+      (Math.floor(g * 0.7) << 8) |
+      Math.floor(b * 0.7);
 
-    // Head
-    this.#graphics.fillStyle(0xffe4c4);
-    this.#graphics.fillCircle(0, -hh - 6, 7);
+    // Body base
+    gfx.fillStyle(this.#color, 1);
+    gfx.fillRect(-hw, -hh, CHAR_WIDTH, CHAR_HEIGHT);
 
-    // Eyes
-    this.#graphics.fillStyle(0x000000);
-    this.#graphics.fillRect(-3, -hh - 9, 2, 2);
-    this.#graphics.fillRect(2, -hh - 9, 2, 2);
+    // Body shadow (bottom 6px)
+    gfx.fillStyle(darkenColor, 0.3);
+    gfx.fillRect(-hw, hh - 6, CHAR_WIDTH, 6);
+
+    // Body highlight (upper-left subtle glint)
+    gfx.fillStyle(0xffffff, 0.2);
+    gfx.fillCircle(-4, -6, 4);
+
+    // Helmet (darker shade, slightly larger circle behind face)
+    gfx.fillStyle(darkenColor, 1);
+    gfx.fillCircle(0, headY - 2, 9);
+
+    // Head (cream face on top of helmet)
+    gfx.fillStyle(0xffe4c4, 1);
+    gfx.fillCircle(0, headY, 8);
+
+    // Eyes – white sclera
+    gfx.fillStyle(0xffffff, 1);
+    gfx.fillCircle(-3, eyeY, 2);
+    gfx.fillCircle(2, eyeY, 2);
+
+    // Eyes – pupils
+    gfx.fillStyle(0x000000, 1);
+    gfx.fillCircle(-3, eyeY, 1);
+    gfx.fillCircle(2, eyeY, 1);
   }
 
   #drawHpBar(): void {
@@ -243,6 +273,8 @@ export class Character {
     // Immediately hide non-animated UI elements
     this.#hpBar.destroy();
     this.#indicator.destroy();
+    this.#weaponText?.destroy();
+    this.#weaponText = null;
 
     // Screen shake on impact
     this.#scene.cameras.main.shake(200, 0.005);
@@ -328,7 +360,20 @@ export class Character {
       this.#pulseTween?.stop();
       this.#pulseTween = null;
       this.#graphics.setScale(1, 1);
+      this.#weaponText?.destroy();
+      this.#weaponText = null;
     }
+  }
+
+  /** Show the active weapon emoji above the HP bar. Call while the worm is active. */
+  setWeapon(label: string): void {
+    this.#weaponText?.destroy();
+    this.#weaponText = null;
+    if (!label || !this.#active || !this.#alive) return;
+    this.#weaponText = this.#scene.add
+      .text(0, 0, label, { fontSize: "16px" })
+      .setOrigin(0.5, 1)
+      .setDepth(15);
   }
 
   /** Activate a protective shield that blocks the next incoming damage. */
@@ -408,6 +453,15 @@ export class Character {
 
     this.#hpBar.setPosition(this.body.position.x, this.body.position.y);
     this.#hpBar.setRotation(theta + Math.PI / 2);
+
+    // Sync weapon text above the HP bar (in world space along radial direction)
+    if (this.#weaponText) {
+      const dist = Math.abs(HP_BAR_OFFSET_Y) + 10;
+      this.#weaponText.setPosition(
+        this.body.position.x + Math.cos(theta) * dist,
+        this.body.position.y + Math.sin(theta) * dist,
+      );
+    }
 
     // Sync shield aura position (no rotation — it's always a circle)
     if (this.#shieldAura) {

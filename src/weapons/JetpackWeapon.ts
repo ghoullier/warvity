@@ -8,6 +8,7 @@ let activeJetpack: Jetpack | null = null;
 registerWeapon({
   id: "jetpack",
   label: "🚀  Jetpack",
+  trajectoryType: "none",
 
   fire(ctx: WeaponContext): boolean {
     if (activeJetpack?.isActive()) return false;

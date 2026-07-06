@@ -8,6 +8,7 @@ let activeFlamethrower: Flamethrower | null = null;
 registerWeapon({
   id: "flamethrower",
   label: "🔥  Flamethrower",
+  trajectoryType: "none",
 
   fire(ctx: WeaponContext): boolean {
     const { scene, worm, angle, terrain, allWorms, audioManager } = ctx;

@@ -11,6 +11,7 @@ const projectiles: Projectile[] = [];
 registerWeapon({
   id: "bazooka",
   label: "🚀  Bazooka",
+  trajectoryType: "ballistic",
 
   fire(ctx: WeaponContext): boolean {
     const {

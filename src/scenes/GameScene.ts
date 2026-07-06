@@ -388,7 +388,7 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.#teleporter.deactivate();
       if (inputMode === "aim") {
-        this.#aimingSystem.activate(worm);
+        this.#aimingSystem.activate(worm, this.#activeWeapon);
       } else {
         this.#aimingSystem.deactivate();
       }

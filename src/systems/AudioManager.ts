@@ -30,294 +30,172 @@ export class AudioManager {
   /** Short white-noise burst simulating an explosion. */
   playExplosion(): void {
     if (this.#muted) return;
-    const duration = 0.3;
-    const bufferSize = Math.ceil(this.#ctx.sampleRate * duration);
-    const buffer = this.#ctx.createBuffer(1, bufferSize, this.#ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-
-    const source = this.#ctx.createBufferSource();
-    source.buffer = buffer;
-
-    // Low-pass filter for a boomier feel
-    const filter = this.#ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 600;
-
-    const gain = this.#ctx.createGain();
-    const now = this.#ctx.currentTime;
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.9, now + 0.02); // attack
-    gain.gain.linearRampToValueAtTime(0.6, now + 0.05); // decay to sustain
-    gain.gain.linearRampToValueAtTime(0, now + duration); // release
-
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.#master);
-    source.start(now);
-    source.stop(now + duration);
-    this.#scheduleDisconnect(duration * 1000, source, filter, gain);
+    this.#playNoise(
+      "lowpass",
+      600,
+      (gain, now) => {
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.9, now + 0.02); // attack
+        gain.gain.linearRampToValueAtTime(0.6, now + 0.05); // decay to sustain
+        gain.gain.linearRampToValueAtTime(0, now + 0.3); // release
+      },
+      300,
+    );
   }
 
   /** Rising sine oscillator sweep: 200→500 Hz over 0.15 s. */
   playJump(): void {
     if (this.#muted) return;
-    const duration = 0.15;
-    const osc = this.#ctx.createOscillator();
-    osc.type = "sine";
-
-    const gain = this.#ctx.createGain();
-    const now = this.#ctx.currentTime;
-
-    osc.frequency.setValueAtTime(200, now);
-    osc.frequency.linearRampToValueAtTime(500, now + duration);
-
-    gain.gain.setValueAtTime(0.4, now);
-    gain.gain.linearRampToValueAtTime(0, now + duration);
-
-    osc.connect(gain);
-    gain.connect(this.#master);
-    osc.start(now);
-    osc.stop(now + duration);
-    osc.addEventListener("ended", () => {
-      osc.disconnect();
-      gain.disconnect();
-    });
+    this.#playOsc(
+      "sine",
+      (osc, now) => {
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.linearRampToValueAtTime(500, now + 0.15);
+      },
+      (gain, now) => {
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.15);
+      },
+      150,
+    );
   }
 
   /** High-pass filtered white noise whoosh (firing a projectile). */
   playFire(): void {
     if (this.#muted) return;
-    const duration = 0.2;
-    const bufferSize = Math.ceil(this.#ctx.sampleRate * duration);
-    const buffer = this.#ctx.createBuffer(1, bufferSize, this.#ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-
-    const source = this.#ctx.createBufferSource();
-    source.buffer = buffer;
-
-    const filter = this.#ctx.createBiquadFilter();
-    filter.type = "highpass";
-    filter.frequency.value = 2000;
-
-    const gain = this.#ctx.createGain();
-    const now = this.#ctx.currentTime;
-    gain.gain.setValueAtTime(0.5, now);
-    gain.gain.linearRampToValueAtTime(0, now + duration);
-
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.#master);
-    source.start(now);
-    source.stop(now + duration);
-    this.#scheduleDisconnect(duration * 1000, source, filter, gain);
+    this.#playNoise(
+      "highpass",
+      2000,
+      (gain, now) => {
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.2);
+      },
+      200,
+    );
   }
 
   /** Falling oscillator: 500→0 Hz over 0.5 s (worm death). */
   playDeath(): void {
     if (this.#muted) return;
-    const duration = 0.5;
-    const osc = this.#ctx.createOscillator();
-    osc.type = "sawtooth";
-
-    const gain = this.#ctx.createGain();
-    const now = this.#ctx.currentTime;
-
-    osc.frequency.setValueAtTime(500, now);
-    osc.frequency.linearRampToValueAtTime(20, now + duration);
-
-    gain.gain.setValueAtTime(0.35, now);
-    gain.gain.linearRampToValueAtTime(0, now + duration);
-
-    osc.connect(gain);
-    gain.connect(this.#master);
-    osc.start(now);
-    osc.stop(now + duration);
-    osc.addEventListener("ended", () => {
-      osc.disconnect();
-      gain.disconnect();
-    });
+    this.#playOsc(
+      "sawtooth",
+      (osc, now) => {
+        osc.frequency.setValueAtTime(500, now);
+        osc.frequency.linearRampToValueAtTime(20, now + 0.5);
+      },
+      (gain, now) => {
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.5);
+      },
+      500,
+    );
   }
 
   /** Short bandpass-filtered noise burst (jetpack thrust). */
   playJetpackThrust(): void {
     if (this.#muted) return;
-    const duration = 0.12;
-    const bufferSize = Math.ceil(this.#ctx.sampleRate * duration);
-    const buffer = this.#ctx.createBuffer(1, bufferSize, this.#ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-
-    const source = this.#ctx.createBufferSource();
-    source.buffer = buffer;
-
     // Bandpass centred around 800 Hz for a mid-range whoosh
-    const filter = this.#ctx.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.value = 800;
-    filter.Q.value = 1.5;
-
-    const gain = this.#ctx.createGain();
-    const now = this.#ctx.currentTime;
-    gain.gain.setValueAtTime(0.25, now);
-    gain.gain.linearRampToValueAtTime(0, now + duration);
-
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.#master);
-    source.start(now);
-    source.stop(now + duration);
-    this.#scheduleDisconnect(duration * 1000, source, filter, gain);
+    this.#playNoise(
+      "bandpass",
+      800,
+      (gain, now) => {
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.12);
+      },
+      120,
+      1.5,
+    );
   }
 
   /** Sputtering engine-stop sound (jetpack fuel exhausted). */
   playJetpackEnd(): void {
     if (this.#muted) return;
-    const duration = 0.4;
-    const now = this.#ctx.currentTime;
-
     // Two descending oscillators that fade and sputter
     for (const [startHz, endHz] of [
       [600, 80],
       [400, 40],
     ] as [number, number][]) {
-      const osc = this.#ctx.createOscillator();
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(startHz, now);
-      osc.frequency.linearRampToValueAtTime(endHz, now + duration);
-
-      const gain = this.#ctx.createGain();
-      gain.gain.setValueAtTime(0.3, now);
-      gain.gain.linearRampToValueAtTime(0.15, now + duration * 0.5);
-      gain.gain.linearRampToValueAtTime(0, now + duration);
-
-      osc.connect(gain);
-      gain.connect(this.#master);
-      osc.start(now);
-      osc.stop(now + duration);
-      osc.addEventListener("ended", () => {
-        osc.disconnect();
-        gain.disconnect();
-      });
+      this.#playOsc(
+        "sawtooth",
+        (osc, now) => {
+          osc.frequency.setValueAtTime(startHz, now);
+          osc.frequency.linearRampToValueAtTime(endHz, now + 0.4);
+        },
+        (gain, now) => {
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.linearRampToValueAtTime(0.15, now + 0.2);
+          gain.gain.linearRampToValueAtTime(0, now + 0.4);
+        },
+        400,
+      );
     }
   }
 
   /** Two harmonically rising oscillators (teleport / turn start). */
   playTeleport(): void {
     if (this.#muted) return;
-    const duration = 0.3;
-    const now = this.#ctx.currentTime;
-
     for (const [startHz, endHz] of [
       [300, 600],
       [400, 800],
     ] as [number, number][]) {
-      const osc = this.#ctx.createOscillator();
-      osc.type = "sine";
-
-      const gain = this.#ctx.createGain();
-      osc.frequency.setValueAtTime(startHz, now);
-      osc.frequency.linearRampToValueAtTime(endHz, now + duration);
-
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.linearRampToValueAtTime(0, now + duration);
-
-      osc.connect(gain);
-      gain.connect(this.#master);
-      osc.start(now);
-      osc.stop(now + duration);
-      osc.addEventListener("ended", () => {
-        osc.disconnect();
-        gain.disconnect();
-      });
+      this.#playOsc(
+        "sine",
+        (osc, now) => {
+          osc.frequency.setValueAtTime(startHz, now);
+          osc.frequency.linearRampToValueAtTime(endHz, now + 0.3);
+        },
+        (gain, now) => {
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.linearRampToValueAtTime(0, now + 0.3);
+        },
+        300,
+      );
     }
   }
 
   /** High-frequency pop + short whoosh: cluster bomb splitting into sub-munitions. */
   playClusterSplit(): void {
     if (this.#muted) return;
-    const now = this.#ctx.currentTime;
-
     // Whoosh: bandpass filtered noise sweep
-    const dur = 0.18;
-    const bufSize = Math.ceil(this.#ctx.sampleRate * dur);
-    const buf = this.#ctx.createBuffer(1, bufSize, this.#ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-    const noise = this.#ctx.createBufferSource();
-    noise.buffer = buf;
-    const bp = this.#ctx.createBiquadFilter();
-    bp.type = "bandpass";
-    bp.frequency.value = 1800;
-    bp.Q.value = 1.5;
-    const whooshGain = this.#ctx.createGain();
-    whooshGain.gain.setValueAtTime(0.45, now);
-    whooshGain.gain.linearRampToValueAtTime(0, now + dur);
-    noise.connect(bp);
-    bp.connect(whooshGain);
-    whooshGain.connect(this.#master);
-    noise.start(now);
-    noise.stop(now + dur);
-    this.#scheduleDisconnect(dur * 1000, noise, bp, whooshGain);
-
+    this.#playNoise(
+      "bandpass",
+      1800,
+      (gain, now) => {
+        gain.gain.setValueAtTime(0.45, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.18);
+      },
+      180,
+      1.5,
+    );
     // Pop: short triangle burst
-    const osc = this.#ctx.createOscillator();
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(900, now);
-    osc.frequency.linearRampToValueAtTime(400, now + 0.06);
-    const popGain = this.#ctx.createGain();
-    popGain.gain.setValueAtTime(0.35, now);
-    popGain.gain.linearRampToValueAtTime(0, now + 0.06);
-    osc.connect(popGain);
-    popGain.connect(this.#master);
-    osc.start(now);
-    osc.stop(now + 0.06);
-    osc.addEventListener("ended", () => {
-      osc.disconnect();
-      popGain.disconnect();
-    });
+    this.#playOsc(
+      "triangle",
+      (osc, now) => {
+        osc.frequency.setValueAtTime(900, now);
+        osc.frequency.linearRampToValueAtTime(400, now + 0.06);
+      },
+      (gain, now) => {
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.06);
+      },
+      60,
+    );
   }
 
   /** Smaller explosion sound for each sub-munition detonation (lower gain). */
   playSubExplosion(): void {
     if (this.#muted) return;
-    const duration = 0.18;
-    const bufferSize = Math.ceil(this.#ctx.sampleRate * duration);
-    const buffer = this.#ctx.createBuffer(1, bufferSize, this.#ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-
-    const source = this.#ctx.createBufferSource();
-    source.buffer = buffer;
-
-    const filter = this.#ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = 900;
-
-    const gain = this.#ctx.createGain();
-    const now = this.#ctx.currentTime;
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.4, now + 0.01);
-    gain.gain.linearRampToValueAtTime(0.25, now + 0.04);
-    gain.gain.linearRampToValueAtTime(0, now + duration);
-
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.#master);
-    source.start(now);
-    source.stop(now + duration);
-    this.#scheduleDisconnect(duration * 1000, source, filter, gain);
+    this.#playNoise(
+      "lowpass",
+      900,
+      (gain, now) => {
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.4, now + 0.01);
+        gain.gain.linearRampToValueAtTime(0.25, now + 0.04);
+        gain.gain.linearRampToValueAtTime(0, now + 0.18);
+      },
+      180,
+    );
   }
 
   /**
@@ -345,100 +223,61 @@ export class AudioManager {
    */
   playFlamethrower(): void {
     if (this.#muted) return;
-    const duration = 1.5;
-    const bufferSize = Math.ceil(this.#ctx.sampleRate * duration);
-    const buffer = this.#ctx.createBuffer(1, bufferSize, this.#ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-
-    const source = this.#ctx.createBufferSource();
-    source.buffer = buffer;
-
-    // Band-pass centred on ~800 Hz gives a hissing crackle
-    const bandPass = this.#ctx.createBiquadFilter();
-    bandPass.type = "bandpass";
-    bandPass.frequency.value = 800;
-    bandPass.Q.value = 0.8;
-
-    // Low-pass layer for warmth
-    const lowPass = this.#ctx.createBiquadFilter();
-    lowPass.type = "lowpass";
-    lowPass.frequency.value = 1800;
-
-    const gain = this.#ctx.createGain();
-    const now = this.#ctx.currentTime;
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.7, now + 0.05); // quick attack
-    gain.gain.linearRampToValueAtTime(0.5, now + 0.8); // sustain
-    gain.gain.linearRampToValueAtTime(0, now + duration); // fade out
-
-    source.connect(bandPass);
-    bandPass.connect(lowPass);
-    lowPass.connect(gain);
-    gain.connect(this.#master);
-    source.start(now);
-    source.stop(now + duration);
-    this.#scheduleDisconnect(duration * 1000, source, bandPass, lowPass, gain);
+    // Band-pass centred on ~800 Hz gives a hissing crackle; low-pass layer adds warmth
+    this.#playNoise(
+      "bandpass",
+      800,
+      (gain, now) => {
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.7, now + 0.05); // quick attack
+        gain.gain.linearRampToValueAtTime(0.5, now + 0.8); // sustain
+        gain.gain.linearRampToValueAtTime(0, now + 1.5); // fade out
+      },
+      1500,
+      0.8,
+      { type: "lowpass", freq: 1800 },
+    );
   }
 
   /** Rising hum-chime: 300→900 Hz over 0.5 s (shield activation). */
   playShieldActivate(): void {
     if (this.#muted) return;
-    const duration = 0.5;
-    const now = this.#ctx.currentTime;
-
     for (const [startHz, endHz] of [
       [300, 900],
       [450, 1200],
     ] as [number, number][]) {
-      const osc = this.#ctx.createOscillator();
-      osc.type = "sine";
-
-      const gain = this.#ctx.createGain();
-      osc.frequency.setValueAtTime(startHz, now);
-      osc.frequency.linearRampToValueAtTime(endHz, now + duration);
-
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.25, now + 0.05);
-      gain.gain.linearRampToValueAtTime(0.15, now + duration * 0.7);
-      gain.gain.linearRampToValueAtTime(0, now + duration);
-
-      osc.connect(gain);
-      gain.connect(this.#master);
-      osc.start(now);
-      osc.stop(now + duration);
-      osc.addEventListener("ended", () => {
-        osc.disconnect();
-        gain.disconnect();
-      });
+      this.#playOsc(
+        "sine",
+        (osc, now) => {
+          osc.frequency.setValueAtTime(startHz, now);
+          osc.frequency.linearRampToValueAtTime(endHz, now + 0.5);
+        },
+        (gain, now) => {
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.25, now + 0.05);
+          gain.gain.linearRampToValueAtTime(0.15, now + 0.5 * 0.7);
+          gain.gain.linearRampToValueAtTime(0, now + 0.5);
+        },
+        500,
+      );
     }
   }
 
   /** Short metallic clank (damage blocked by shield). */
   playShieldBlock(): void {
     if (this.#muted) return;
-    const duration = 0.18;
-    const now = this.#ctx.currentTime;
-
-    const osc = this.#ctx.createOscillator();
-    osc.type = "square";
-    osc.frequency.setValueAtTime(1200, now);
-    osc.frequency.linearRampToValueAtTime(800, now + duration);
-
-    const gain = this.#ctx.createGain();
-    gain.gain.setValueAtTime(0.4, now);
-    gain.gain.linearRampToValueAtTime(0, now + duration);
-
-    osc.connect(gain);
-    gain.connect(this.#master);
-    osc.start(now);
-    osc.stop(now + duration);
-    osc.addEventListener("ended", () => {
-      osc.disconnect();
-      gain.disconnect();
-    });
+    this.#playOsc(
+      "square",
+      (osc, now) => {
+        osc.frequency.setValueAtTime(1200, now);
+        osc.frequency.linearRampToValueAtTime(800, now + 0.18);
+      },
+      (gain, now) => {
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.18);
+      },
+      180,
+    );
   }
 
   /** Toggle global mute on/off. Returns the new muted state. */
@@ -455,78 +294,50 @@ export class AudioManager {
   /** Soft click: mine has been placed on the terrain. */
   playMinePlaced(): void {
     if (this.#muted) return;
-    const duration = 0.08;
-    const now = this.#ctx.currentTime;
-    const osc = this.#ctx.createOscillator();
-    osc.type = "square";
-    osc.frequency.setValueAtTime(800, now);
-    osc.frequency.linearRampToValueAtTime(400, now + duration);
-    const gain = this.#ctx.createGain();
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.linearRampToValueAtTime(0, now + duration);
-    osc.connect(gain);
-    gain.connect(this.#master);
-    osc.start(now);
-    osc.stop(now + duration);
-    osc.addEventListener("ended", () => {
-      osc.disconnect();
-      gain.disconnect();
-    });
+    this.#playOsc(
+      "square",
+      (osc, now) => {
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.linearRampToValueAtTime(400, now + 0.08);
+      },
+      (gain, now) => {
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.08);
+      },
+      80,
+    );
   }
 
   /** Short high-pitched beep: mine is detecting a nearby worm. */
   playMineBeep(): void {
     if (this.#muted) return;
-    const duration = 0.05;
-    const now = this.#ctx.currentTime;
-    const osc = this.#ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = 1200;
-    const gain = this.#ctx.createGain();
-    gain.gain.setValueAtTime(0.12, now);
-    gain.gain.linearRampToValueAtTime(0, now + duration);
-    osc.connect(gain);
-    gain.connect(this.#master);
-    osc.start(now);
-    osc.stop(now + duration);
-    osc.addEventListener("ended", () => {
-      osc.disconnect();
-      gain.disconnect();
-    });
+    this.#playOsc(
+      "sine",
+      1200,
+      (gain, now) => {
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.05);
+      },
+      50,
+    );
   }
 
   /** Sharper explosion (mine detonation — higher frequencies than a regular blast). */
   playMineExplosion(): void {
     if (this.#muted) return;
-    const duration = 0.25;
-    const bufferSize = Math.ceil(this.#ctx.sampleRate * duration);
-    const buffer = this.#ctx.createBuffer(1, bufferSize, this.#ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-      data[i] = Math.random() * 2 - 1;
-    }
-    const source = this.#ctx.createBufferSource();
-    source.buffer = buffer;
-
     // Bandpass filter for a sharper crack
-    const filter = this.#ctx.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.value = 1200;
-    filter.Q.value = 0.5;
-
-    const gain = this.#ctx.createGain();
-    const now = this.#ctx.currentTime;
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(1.0, now + 0.01);
-    gain.gain.linearRampToValueAtTime(0.5, now + 0.05);
-    gain.gain.linearRampToValueAtTime(0, now + duration);
-
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.#master);
-    source.start(now);
-    source.stop(now + duration);
-    this.#scheduleDisconnect(duration * 1000, source, filter, gain);
+    this.#playNoise(
+      "bandpass",
+      1200,
+      (gain, now) => {
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(1.0, now + 0.01);
+        gain.gain.linearRampToValueAtTime(0.5, now + 0.05);
+        gain.gain.linearRampToValueAtTime(0, now + 0.25);
+      },
+      250,
+      0.5,
+    );
   }
 
   // ──────────────────────────────── private helpers ─────────────────────────────
@@ -542,6 +353,86 @@ export class AudioManager {
     }, durationMs + 100);
   }
 
+  /**
+   * Create an oscillator → gain chain connected to master, play it for
+   * `durationMs`, then auto-disconnect via `#scheduleDisconnect`.
+   *
+   * `freq` may be a fixed Hz value or a callback that configures the
+   * oscillator's frequency (e.g. for sweeps / ramps).
+   */
+  #playOsc(
+    type: OscillatorType,
+    freq: number | ((osc: OscillatorNode, now: number) => void),
+    gainEnvelope: (gain: GainNode, now: number) => void,
+    durationMs: number,
+  ): void {
+    const now = this.#ctx.currentTime;
+    const osc = this.#ctx.createOscillator();
+    const gain = this.#ctx.createGain();
+    osc.connect(gain);
+    gain.connect(this.#master);
+    osc.type = type;
+    if (typeof freq === "number") osc.frequency.setValueAtTime(freq, now);
+    else freq(osc, now);
+    gainEnvelope(gain, now);
+    osc.start(now);
+    osc.stop(now + durationMs / 1000);
+    this.#scheduleDisconnect(durationMs, osc, gain);
+  }
+
+  /**
+   * Fill a white-noise buffer, run it through a biquad filter (and an
+   * optional second filter in series), apply a gain envelope, then
+   * auto-disconnect via `#scheduleDisconnect`.
+   */
+  #playNoise(
+    filterType: BiquadFilterType,
+    filterFreq: number,
+    gainEnvelope: (gain: GainNode, now: number) => void,
+    durationMs: number,
+    filterQ?: number,
+    extraFilter?: { type: BiquadFilterType; freq: number; q?: number },
+  ): void {
+    const now = this.#ctx.currentTime;
+    const durationSec = durationMs / 1000;
+    const bufferSize = Math.ceil(this.#ctx.sampleRate * durationSec);
+    const buffer = this.#ctx.createBuffer(1, bufferSize, this.#ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const source = this.#ctx.createBufferSource();
+    source.buffer = buffer;
+
+    const filter = this.#ctx.createBiquadFilter();
+    filter.type = filterType;
+    filter.frequency.value = filterFreq;
+    if (filterQ !== undefined) filter.Q.value = filterQ;
+
+    const gain = this.#ctx.createGain();
+    gainEnvelope(gain, now);
+
+    const nodes: AudioNode[] = [source, filter];
+    source.connect(filter);
+
+    if (extraFilter) {
+      const extra = this.#ctx.createBiquadFilter();
+      extra.type = extraFilter.type;
+      extra.frequency.value = extraFilter.freq;
+      if (extraFilter.q !== undefined) extra.Q.value = extraFilter.q;
+      filter.connect(extra);
+      extra.connect(gain);
+      nodes.push(extra);
+    } else {
+      filter.connect(gain);
+    }
+
+    gain.connect(this.#master);
+    nodes.push(gain);
+    source.start(now);
+    source.stop(now + durationSec);
+    this.#scheduleDisconnect(durationMs, ...nodes);
+  }
+
   #scheduleNextNote(): void {
     if (!this.#musicRunning) return;
 
@@ -555,29 +446,19 @@ export class AudioManager {
 
   #playMusicNote(): void {
     if (this.#muted) return;
-
     // biome-ignore lint/style/noNonNullAssertion: index is bounded by PENTATONIC.length
     const freq = PENTATONIC[Math.floor(Math.random() * PENTATONIC.length)]!;
     const duration = 0.4 + Math.random() * 0.3;
-    const now = this.#ctx.currentTime;
-
-    const osc = this.#ctx.createOscillator();
-    osc.type = "triangle";
-    osc.frequency.value = freq;
-
-    const gain = this.#ctx.createGain();
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.15, now + 0.05);
-    gain.gain.linearRampToValueAtTime(0.1, now + duration * 0.6);
-    gain.gain.linearRampToValueAtTime(0, now + duration);
-
-    osc.connect(gain);
-    gain.connect(this.#master);
-    osc.start(now);
-    osc.stop(now + duration);
-    osc.addEventListener("ended", () => {
-      osc.disconnect();
-      gain.disconnect();
-    });
+    this.#playOsc(
+      "triangle",
+      freq,
+      (gain, now) => {
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.15, now + 0.05);
+        gain.gain.linearRampToValueAtTime(0.1, now + duration * 0.6);
+        gain.gain.linearRampToValueAtTime(0, now + duration);
+      },
+      duration * 1000,
+    );
   }
 }

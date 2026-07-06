@@ -83,7 +83,7 @@ export class GravityBoost {
           this.#active = false;
           this.#onMultiplierChange(1);
           this.#scene.events.emit(GameEvents.GRAVITY_CHANGED, {
-            mode: null as unknown as GravityMode,
+            mode: null,
             remaining: 0,
           });
           this.#onEnd();

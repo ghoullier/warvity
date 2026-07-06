@@ -13,14 +13,15 @@ const TURN_DURATION_SECONDS = 30;
  * Example with 2 teams of 2 worms each:
  *   Team 0 / Worm 0 → Team 1 / Worm 0 → Team 0 / Worm 1 → Team 1 / Worm 1 → …
  *
- * Events emitted:
+ * Events emitted on the scene's event bus:
  *   'turn-start'  — payload: the newly active Character
  *   'turn-end'    — no payload
  *   'timer-tick'  — payload: remaining seconds (integer)
  */
-export class TurnManager extends Phaser.Events.EventEmitter {
+export class TurnManager {
   readonly #teams: Character[][];
   readonly #teamWormIndices: number[];
+  readonly #events: Phaser.Events.EventEmitter;
   #currentTeamIndex: number;
   #stopped = false;
   #timerEvent: Phaser.Time.TimerEvent | null = null;
@@ -34,8 +35,7 @@ export class TurnManager extends Phaser.Events.EventEmitter {
     return this.#teamWormIndices[this.#currentTeamIndex] ?? 0;
   }
 
-  constructor(teams: Character[][]) {
-    super();
+  constructor(teams: Character[][], scene: Phaser.Scene) {
     if (teams.length === 0)
       throw new Error("TurnManager requires at least one team");
     for (const team of teams) {
@@ -43,6 +43,7 @@ export class TurnManager extends Phaser.Events.EventEmitter {
         throw new Error("Each team must have at least one worm");
     }
 
+    this.#events = scene.events;
     this.#teams = teams;
     this.#teamWormIndices = teams.map(() => 0);
     this.#currentTeamIndex = 0;
@@ -80,7 +81,7 @@ export class TurnManager extends Phaser.Events.EventEmitter {
       callback: () => {
         if (this.#stopped) return;
         this.#remainingSeconds -= 1;
-        this.emit(GameEvents.TIMER_TICK, this.#remainingSeconds);
+        this.#events.emit(GameEvents.TIMER_TICK, this.#remainingSeconds);
         if (this.#remainingSeconds <= 0) {
           this.nextTurn();
         }
@@ -116,7 +117,7 @@ export class TurnManager extends Phaser.Events.EventEmitter {
   nextTurn(): void {
     if (this.#stopped) return;
     this.stopTimer();
-    this.emit(GameEvents.TURN_END);
+    this.#events.emit(GameEvents.TURN_END);
     this.#deactivateCurrentWorm();
 
     // Advance this team's worm pointer for when they play again
@@ -129,7 +130,7 @@ export class TurnManager extends Phaser.Events.EventEmitter {
     this.#currentTeamIndex = (this.#currentTeamIndex + 1) % this.#teams.length;
 
     this.#activateCurrentWorm();
-    this.emit(GameEvents.TURN_START, this.getCurrentWorm());
+    this.#events.emit(GameEvents.TURN_START, this.getCurrentWorm());
   }
 
   // ──────────────────────────────── private helpers ────────────────────────────

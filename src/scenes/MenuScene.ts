@@ -11,6 +11,15 @@ const PLANET_CX = CANVAS_SIZE / 2;
 const PLANET_CY = 740;
 const PLANET_R = 220;
 
+const PLANET_PATCHES: Array<{ a: number; d: number; s: number }> = [
+  { a: 0.3, d: 70, s: 34 },
+  { a: 1.2, d: 90, s: 28 },
+  { a: 2.1, d: 60, s: 22 },
+  { a: 3.0, d: 80, s: 30 },
+  { a: 4.3, d: 50, s: 26 },
+  { a: 5.4, d: 75, s: 20 },
+];
+
 /**
  * Main menu scene shown at startup.
  *
@@ -23,7 +32,9 @@ export class MenuScene extends Phaser.Scene {
   #planetStyle: PlanetStyle = PLANET_STYLES[0] ?? DEFAULT_PLANET_STYLE;
   #teamsText!: Phaser.GameObjects.Text;
   #wormsText!: Phaser.GameObjects.Text;
+  #planetBaseGfx!: Phaser.GameObjects.Graphics;
   #planetGfx!: Phaser.GameObjects.Graphics;
+  #planetRingGfx!: Phaser.GameObjects.Graphics;
   #planetAngle = 0;
   #overlayActive = false;
   #styleSwatches: Phaser.GameObjects.Rectangle[] = [];
@@ -45,9 +56,16 @@ export class MenuScene extends Phaser.Scene {
     );
     this.#addStars();
 
-    // Animated planet (partially visible at the bottom)
+    // Animated planet (partially visible at the bottom):
+    // three layers so static base/ring are drawn once and only patches rotate
+    this.#planetBaseGfx = this.add.graphics();
+    this.#drawPlanetBase();
+
     this.#planetGfx = this.add.graphics();
-    this.#drawPlanet();
+    this.#drawPatches();
+
+    this.#planetRingGfx = this.add.graphics();
+    this.#drawPlanetRing();
 
     // Title
     this.add
@@ -177,44 +195,41 @@ export class MenuScene extends Phaser.Scene {
 
   override update(): void {
     this.#planetAngle += 0.003;
-    this.#drawPlanet();
+    this.#planetGfx.clear();
+    this.#drawPatches();
   }
 
   // ──────────────────────────────── private helpers ─────────────────────────────
 
-  #drawPlanet(): void {
-    const gfx = this.#planetGfx;
+  #drawPlanetBase(): void {
+    const gfx = this.#planetBaseGfx;
     gfx.clear();
-
     const fill = this.#planetStyle.terrainFill;
-    const accent = this.#planetStyle.surfaceAccent;
-    const outline = this.#planetStyle.terrainOutline;
 
-    // Outer atmosphere glow
     gfx.lineStyle(10, 0x4499ff, 0.15);
     gfx.strokeCircle(PLANET_CX, PLANET_CY, PLANET_R + 12);
 
-    // Planet base
     gfx.fillStyle(fill, 1);
     gfx.fillCircle(PLANET_CX, PLANET_CY, PLANET_R);
+  }
 
-    // Terrain patches that rotate slowly
-    const patches: Array<{ a: number; d: number; s: number }> = [
-      { a: 0.3, d: 70, s: 34 },
-      { a: 1.2, d: 90, s: 28 },
-      { a: 2.1, d: 60, s: 22 },
-      { a: 3.0, d: 80, s: 30 },
-      { a: 4.3, d: 50, s: 26 },
-      { a: 5.4, d: 75, s: 20 },
-    ];
+  #drawPatches(): void {
+    const gfx = this.#planetGfx;
+    const accent = this.#planetStyle.surfaceAccent;
+
     gfx.fillStyle(accent, 1);
-    for (const p of patches) {
+    for (const p of PLANET_PATCHES) {
       const px = PLANET_CX + Math.cos(p.a + this.#planetAngle) * p.d;
       const py = PLANET_CY + Math.sin(p.a + this.#planetAngle) * p.d;
       gfx.fillCircle(px, py, p.s);
     }
+  }
 
-    // Atmosphere ring
+  #drawPlanetRing(): void {
+    const gfx = this.#planetRingGfx;
+    gfx.clear();
+    const outline = this.#planetStyle.terrainOutline;
+
     gfx.lineStyle(3, outline, 0.5);
     gfx.strokeCircle(PLANET_CX, PLANET_CY, PLANET_R + 5);
   }
@@ -359,6 +374,8 @@ export class MenuScene extends Phaser.Scene {
       swatch.on("pointerdown", () => {
         this.#planetStyle = style;
         this.#refreshSwatchBorders();
+        this.#drawPlanetBase();
+        this.#drawPlanetRing();
       });
 
       swatch.on("pointerover", () => {

@@ -4,11 +4,10 @@ import { PLANET_CENTER } from "../config";
 import type { AudioManager } from "../systems/AudioManager";
 import { toMatterBody } from "../utils/matterUtils";
 import type { Character } from "./Character";
+import { CHAR_HEIGHT } from "./Character";
 
 const THRUST_FORCE = 0.005;
 const EXHAUST_LIFE_MS = 300;
-// Height of the character sprite — feet are half this below the body centre
-const CHAR_HEIGHT = 26;
 
 /**
  * Equips the active worm with a jetpack for a fixed duration.

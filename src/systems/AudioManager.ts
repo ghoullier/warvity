@@ -280,6 +280,34 @@ export class AudioManager {
     );
   }
 
+  /**
+   * 4-note ascending victory jingle (C4 → E4 → G4 → C5).
+   * Each note is a short sine burst staggered in time.
+   */
+  playVictory(): void {
+    if (this.#muted) return;
+    const notes = [261.63, 329.63, 392.0, 523.25];
+    notes.forEach((freq, i) => {
+      const delayMs = i * 180;
+      setTimeout(() => {
+        this.#playOsc(
+          "sine",
+          (osc, now) => {
+            osc.frequency.setValueAtTime(freq, now);
+            osc.frequency.linearRampToValueAtTime(freq * 1.02, now + 0.25);
+          },
+          (gain, now) => {
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.35, now + 0.03);
+            gain.gain.linearRampToValueAtTime(0.2, now + 0.2);
+            gain.gain.linearRampToValueAtTime(0, now + 0.35);
+          },
+          350,
+        );
+      }, delayMs);
+    });
+  }
+
   /** Toggle global mute on/off. Returns the new muted state. */
   toggleMute(): boolean {
     this.#muted = !this.#muted;

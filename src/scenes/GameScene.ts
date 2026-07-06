@@ -30,6 +30,8 @@ import { SceneKeys } from "./SceneKeys";
 const TEAM_COLORS = [0xff6b35, 0x35aaff, 0x35ff6b, 0xff35aa] as const;
 const TEAM_NAMES = ["Team A", "Team B", "Team C", "Team D"] as const;
 
+const STAR_PALETTE = [0xffffff, 0xaaccff, 0xffffcc, 0xffccaa] as const;
+
 /**
  * Main game scene.
  *
@@ -63,6 +65,8 @@ export class GameScene extends Phaser.Scene {
     roundWins: [0, 0] as number[],
   };
   #planetStyle: PlanetStyle = DEFAULT_PLANET_STYLE;
+  #starGfx!: Phaser.GameObjects.Graphics;
+  #twinkleStars: Phaser.GameObjects.Graphics[] = [];
 
   constructor() {
     super({ key: SceneKeys.Game });
@@ -368,6 +372,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   override update(time: number, delta: number): void {
+    // Subtle parallax on star background
+    this.#starGfx.setPosition(
+      this.cameras.main.scrollX * 0.03,
+      this.cameras.main.scrollY * 0.03,
+    );
+
     // Radial gravity for all dynamic bodies (multiplier modified by GravityBoost)
     const bodies = this.matter.world.getAllBodies();
     applyRadialGravity(
@@ -406,6 +416,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   override shutdown(): void {
+    for (const s of this.#twinkleStars) s.destroy();
+    this.#twinkleStars = [];
     this.#audioManager?.stopMusic();
     this.events.removeAllListeners();
     this.input.keyboard?.removeAllListeners();
@@ -471,14 +483,67 @@ export class GameScene extends Phaser.Scene {
   }
 
   #addStars(): void {
-    const gfx = this.add.graphics();
-    gfx.fillStyle(0xffffff, 0.8);
-    // Pseudo-random but deterministic star field
-    for (let i = 0; i < 120; i++) {
+    // Faint nebula ellipses behind everything
+    const nebulaGfx = this.add.graphics();
+    const nebulae = [
+      { x: 100, y: 150, rw: 500, rh: 200 },
+      { x: 700, y: 260, rw: 620, rh: 240 },
+      { x: 350, y: 680, rw: 480, rh: 200 },
+    ];
+    for (const n of nebulae) {
+      nebulaGfx.fillStyle(0x224488, 0.04);
+      nebulaGfx.fillEllipse(n.x, n.y, n.rw, n.rh);
+    }
+    nebulaGfx.setDepth(-1);
+
+    // 250-star field: 3 size tiers, color variation, varying opacity
+    const starGfx = this.add.graphics();
+    this.#starGfx = starGfx;
+    starGfx.setDepth(-1);
+
+    for (let i = 0; i < 250; i++) {
       const sx = (((i * 137 + 53) % CANVAS_SIZE) + CANVAS_SIZE) % CANVAS_SIZE;
       const sy = (((i * 97 + 179) % CANVAS_SIZE) + CANVAS_SIZE) % CANVAS_SIZE;
-      const sr = i % 3 === 0 ? 1.5 : 1;
-      gfx.fillCircle(sx, sy, sr);
+      const sr = i < 150 ? 0.7 : i < 220 ? 1.3 : 2.0;
+      const color =
+        i % 20 < 14
+          ? STAR_PALETTE[0]
+          : i % 20 < 17
+            ? STAR_PALETTE[1]
+            : i % 20 < 19
+              ? STAR_PALETTE[2]
+              : STAR_PALETTE[3];
+      const alpha = 0.6 + (i % 5) * 0.1;
+      starGfx.fillStyle(color, alpha);
+      starGfx.fillCircle(sx, sy, sr);
+    }
+
+    // 25 twinkling stars — separate Graphics objects so alpha can be tweened
+    this.#twinkleStars = [];
+    for (let i = 0; i < 25; i++) {
+      const s = this.add.graphics();
+      const x = Math.random() * CANVAS_SIZE;
+      const y = Math.random() * CANVAS_SIZE;
+      const color =
+        i % 20 < 14
+          ? STAR_PALETTE[0]
+          : i % 20 < 17
+            ? STAR_PALETTE[1]
+            : i % 20 < 19
+              ? STAR_PALETTE[2]
+              : STAR_PALETTE[3];
+      s.fillStyle(color, 1);
+      s.fillCircle(x, y, 1.5);
+      s.setDepth(-1);
+      this.#twinkleStars.push(s);
+      this.tweens.add({
+        targets: s,
+        alpha: { from: 0.3, to: 1.0 },
+        duration: 1500 + Math.random() * 2000,
+        yoyo: true,
+        repeat: -1,
+        delay: Math.random() * 3000,
+      });
     }
   }
 }

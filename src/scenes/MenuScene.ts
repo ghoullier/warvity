@@ -7,6 +7,8 @@ import {
 } from "../config/PlanetStyles";
 import { SceneKeys } from "./SceneKeys";
 
+const STAR_PALETTE = [0xffffff, 0xaaccff, 0xffffcc, 0xffccaa] as const;
+
 const PLANET_CX = CANVAS_SIZE / 2;
 const PLANET_CY = 740;
 const PLANET_R = 220;
@@ -448,12 +450,35 @@ export class MenuScene extends Phaser.Scene {
   }
 
   #addStars(): void {
+    // Faint nebula ellipses behind everything
+    const nebulaGfx = this.add.graphics();
+    const nebulae = [
+      { x: 100, y: 150, rw: 500, rh: 200 },
+      { x: 700, y: 260, rw: 620, rh: 240 },
+      { x: 350, y: 680, rw: 480, rh: 200 },
+    ];
+    for (const n of nebulae) {
+      nebulaGfx.fillStyle(0x224488, 0.04);
+      nebulaGfx.fillEllipse(n.x, n.y, n.rw, n.rh);
+    }
+
+    // 250-star field: 3 size tiers, color variation, varying opacity
     const gfx = this.add.graphics();
-    gfx.fillStyle(0xffffff, 0.8);
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 250; i++) {
       const sx = (((i * 137 + 53) % CANVAS_SIZE) + CANVAS_SIZE) % CANVAS_SIZE;
       const sy = (((i * 97 + 179) % CANVAS_SIZE) + CANVAS_SIZE) % CANVAS_SIZE;
-      gfx.fillCircle(sx, sy, i % 3 === 0 ? 1.5 : 1);
+      const sr = i < 150 ? 0.7 : i < 220 ? 1.3 : 2.0;
+      const color =
+        i % 20 < 14
+          ? STAR_PALETTE[0]
+          : i % 20 < 17
+            ? STAR_PALETTE[1]
+            : i % 20 < 19
+              ? STAR_PALETTE[2]
+              : STAR_PALETTE[3];
+      const alpha = 0.6 + (i % 5) * 0.1;
+      gfx.fillStyle(color, alpha);
+      gfx.fillCircle(sx, sy, sr);
     }
   }
 }

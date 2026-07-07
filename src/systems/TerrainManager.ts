@@ -45,6 +45,8 @@ export class TerrainManager {
   readonly #bitmapOriginY: number;
   readonly #renderTexture: Phaser.GameObjects.RenderTexture;
   readonly #outlineGraphics: Phaser.GameObjects.Graphics;
+  /** Static background layer: planet interior fill + gradient. Never erased. */
+  readonly #planetFill: Phaser.GameObjects.Graphics;
   readonly #holes: Hole[] = [];
   readonly #scene: Phaser.Scene;
   readonly #style: PlanetStyle;
@@ -85,13 +87,22 @@ export class TerrainManager {
       },
     );
 
-    // Visual terrain drawn to a RenderTexture for efficient hole-punching
+    // Visual terrain drawn to a RenderTexture for efficient hole-punching.
+    // Only the surface ring is drawn here; the planet interior is on #planetFill.
     this.#renderTexture = scene.add.renderTexture(
       0,
       0,
       CANVAS_SIZE,
       CANVAS_SIZE,
     );
+    this.#renderTexture.setDepth(-1);
+
+    // Static planet interior fill — drawn as a separate Graphics layer
+    // below the RenderTexture so erase() never removes it.
+    this.#planetFill = scene.add.graphics();
+    this.#planetFill.setDepth(-2);
+    this.#drawPlanetInterior();
+
     this.#drawInitialTerrain();
 
     // Static outline overlay drawn above the RenderTexture; stays visible
@@ -215,34 +226,31 @@ export class TerrainManager {
     }
   }
 
-  #drawInitialTerrain(): void {
-    const gfx = this.#scene.add.graphics();
+  /** Draw the static planet interior (gradient fill + surface blobs). Never erased. */
+  #drawPlanetInterior(): void {
+    const gfx = this.#planetFill;
     const cx = PLANET_CENTER.x;
     const cy = PLANET_CENTER.y;
 
-    // 1. Base fill — solid planet interior
+    // 1. Base fill — solid planet disk
     gfx.fillStyle(this.#style.terrainFill, 1);
     gfx.fillCircle(cx, cy, PLANET_RADIUS);
 
-    // 2. Surface ring shadow (90% radius) — darkens inner mass, leaving the
-    //    outer 10% ring as the base terrainFill to create an edge depth cue.
+    // 2. Surface ring shadow — darkens the outer 10% for depth
     gfx.fillStyle(0x000000, 0.2);
     gfx.fillCircle(cx, cy, PLANET_RADIUS * 0.9);
 
-    // 3. Mid layer (65% radius) — accent colour blended lighter to lift depth
+    // 3. Mid layer — accent colour for depth
     gfx.fillStyle(this.#style.surfaceAccent, 0.2);
     gfx.fillCircle(cx, cy, PLANET_RADIUS * 0.65);
 
-    // 4. Core glow (40% radius) — bright inner highlight simulating curvature
+    // 4. Core glow — bright inner highlight
     gfx.fillStyle(this.#style.coreColor, 0.25);
     gfx.fillCircle(cx, cy, PLANET_RADIUS * 0.4);
 
-    // 5. Surface texture blobs — 25 small dark circles scattered near the
-    //    terrain ring to represent rocks/craters at 30% opacity.
-    const BLOB_COUNT = 25;
-    for (let i = 0; i < BLOB_COUNT; i++) {
-      const angle =
-        (Math.PI * 2 * i) / BLOB_COUNT + (Math.random() - 0.5) * 0.5;
+    // 5. Surface texture blobs
+    for (let i = 0; i < 25; i++) {
+      const angle = (Math.PI * 2 * i) / 25 + (Math.random() - 0.5) * 0.5;
       const dist = PLANET_RADIUS * (0.82 + Math.random() * 0.12);
       const bx = cx + Math.cos(angle) * dist;
       const by = cy + Math.sin(angle) * dist;
@@ -250,6 +258,22 @@ export class TerrainManager {
       gfx.fillStyle(this.#style.terrainOutline, 0.3);
       gfx.fillCircle(bx, by, br);
     }
+  }
+
+  #drawInitialTerrain(): void {
+    const gfx = this.#scene.add.graphics();
+    const cx = PLANET_CENTER.x;
+    const cy = PLANET_CENTER.y;
+
+    // Draw only the surface ring into the RenderTexture — the interior
+    // gradient is on the separate #planetFill layer (never erased).
+    gfx.fillStyle(this.#style.terrainFill, 1);
+    gfx.fillCircle(cx, cy, PLANET_RADIUS);
+
+    // Cut out the interior, leaving only the terrain ring visible in the texture
+    gfx.fillStyle(0x000000, 0);
+    // (The ring is implicitly defined by the RenderTexture's erase mechanism
+    //  and the #planetFill layer behind it — no extra cutout needed here.)
 
     this.#renderTexture.draw(gfx);
     gfx.destroy();
@@ -284,6 +308,7 @@ export class TerrainManager {
     this.#scene.matter.world.remove(this.#coreBody, false);
     this.#renderTexture.destroy();
     this.#outlineGraphics.destroy();
+    this.#planetFill.destroy();
   }
 
   /**

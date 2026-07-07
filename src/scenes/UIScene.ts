@@ -9,16 +9,22 @@ import { SceneKeys } from "./SceneKeys";
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 const HP_BAR_W = 68;
-const HP_BAR_H = 8;
+const HP_BAR_H = 11;
 const ROW_H = 20;
 const PANEL_PAD = 8;
 const PANEL_W = 160;
+
+// Approximate vertical center of the 44 px timer text (origin top-center at y=12)
+const TIMER_ARC_Y = 38;
+const TIMER_ARC_R = 32;
+const TIMER_MAX = 30;
 
 type WormRow = {
   fill: Phaser.GameObjects.Graphics;
   barX: number;
   barY: number;
   worm: Character;
+  teamColor: number;
 };
 
 /**
@@ -34,8 +40,11 @@ type WormRow = {
  */
 export class UIScene extends Phaser.Scene {
   #timerText!: Phaser.GameObjects.Text;
+  #timerArc!: Phaser.GameObjects.Graphics;
+  #timerPulsing = false;
   #turnText!: Phaser.GameObjects.Text;
   #weaponText!: Phaser.GameObjects.Text;
+  #weaponPill!: Phaser.GameObjects.Graphics;
   #muteBtn!: Phaser.GameObjects.Text;
   #gravityText!: Phaser.GameObjects.Text;
   #musicToast!: Phaser.GameObjects.Text;
@@ -54,6 +63,9 @@ export class UIScene extends Phaser.Scene {
   create(): void {
     const game = this.scene.get(SceneKeys.Game) as GameScene;
     this.#audioManager = game.audioManager;
+
+    // ── Timer arc (behind timer text) ─────────────────────────────────────────
+    this.#timerArc = this.add.graphics().setDepth(19);
 
     // ── Timer (top center) ────────────────────────────────────────────────────
     this.#timerText = this.add
@@ -77,13 +89,15 @@ export class UIScene extends Phaser.Scene {
       })
       .setDepth(20);
 
+    // ── Weapon pill (behind weapon text) ──────────────────────────────────────
+    this.#weaponPill = this.add.graphics().setDepth(19);
+
     // ── Active weapon (bottom right) ──────────────────────────────────────────
     this.#weaponText = this.add
       .text(CANVAS_SIZE - 10, CANVAS_SIZE - 10, "", {
         fontSize: "15px",
         color: "#ffff88",
-        backgroundColor: "#00000099",
-        padding: { x: 8, y: 5 },
+        padding: { x: 10, y: 4 },
       })
       .setOrigin(1, 1)
       .setDepth(20);
@@ -141,7 +155,7 @@ export class UIScene extends Phaser.Scene {
 
     // ── HP panel (top right) ──────────────────────────────────────────────────
     this.#panelBg = this.add.graphics().setDepth(19);
-    this.#buildHpPanel(game.teams);
+    this.#buildHpPanel(game);
 
     // Seed the UI with the current game state
     this.#applyTurnUpdate(game.activeWorm, game.activeTeamName);
@@ -154,6 +168,8 @@ export class UIScene extends Phaser.Scene {
       (worm: Character) => {
         this.#applyTurnUpdate(worm, game.activeTeamName);
         this.#applyTimerTick(30);
+        const teamColor = game.teamColors[game.activeTeamIndex] ?? 0xffffff;
+        this.#flashVignette(teamColor);
       },
       this,
     );
@@ -201,6 +217,10 @@ export class UIScene extends Phaser.Scene {
       clearTimeout(this.#musicToastTimer);
       this.#musicToastTimer = null;
     }
+    if (this.#timerPulsing) {
+      this.tweens.killTweensOf(this.#timerText);
+      this.#timerPulsing = false;
+    }
     // Remove listeners keyed by this scene context so they don't leak
     const game = this.scene.get(SceneKeys.Game) as GameScene | null;
     if (game) {
@@ -220,7 +240,9 @@ export class UIScene extends Phaser.Scene {
   // ──────────────────────────────── private helpers ─────────────────────────────
 
   /** Build the team HP panel on the top right and store per-worm fill handles. */
-  #buildHpPanel(teams: Array<{ name: string; worms: Character[] }>): void {
+  #buildHpPanel(game: GameScene): void {
+    const teams = game.teams;
+    const teamColors = game.teamColors;
     let totalItems = 0;
     for (const t of teams) totalItems += 1 + t.worms.length; // header + worm rows
     const panelH =
@@ -239,10 +261,16 @@ export class UIScene extends Phaser.Scene {
     for (let ti = 0; ti < teams.length; ti++) {
       // biome-ignore lint/style/noNonNullAssertion: loop index is within bounds
       const team = teams[ti]!;
+      const teamColor = teamColors[ti] ?? 0xaaaaff;
 
-      // Team header
+      // Colored dot before team name
+      const dotGfx = this.add.graphics().setDepth(20);
+      dotGfx.fillStyle(teamColor, 1);
+      dotGfx.fillCircle(textX + 5, y + 6, 5);
+
+      // Team header (offset right to leave room for dot)
       this.add
-        .text(textX, y, team.name.toUpperCase(), {
+        .text(textX + 14, y, team.name.toUpperCase(), {
           fontSize: "11px",
           fontStyle: "bold",
           color: "#aaaaff",
@@ -265,8 +293,14 @@ export class UIScene extends Phaser.Scene {
 
         // Per-worm fill bar (updated on HP change)
         const fill = this.add.graphics().setDepth(21);
-        this.#drawHpFill(fill, worm, barX, y + 4);
-        this.#wormRows.set(worm.name, { fill, barX, barY: y + 4, worm });
+        this.#drawHpFill(fill, worm, barX, y + 4, teamColor);
+        this.#wormRows.set(worm.name, {
+          fill,
+          barX,
+          barY: y + 4,
+          worm,
+          teamColor,
+        });
 
         y += ROW_H;
       }
@@ -275,12 +309,13 @@ export class UIScene extends Phaser.Scene {
     }
   }
 
-  /** Draw the coloured portion of a worm's HP bar. */
+  /** Draw the coloured portion of a worm's HP bar with a team-colored border. */
   #drawHpFill(
     gfx: Phaser.GameObjects.Graphics,
     worm: Character,
     x: number,
     y: number,
+    teamColor: number,
   ): void {
     gfx.clear();
     if (!worm.isAlive() || worm.hp <= 0) return;
@@ -292,13 +327,16 @@ export class UIScene extends Phaser.Scene {
     const color = (r << 16) | (g << 8) | 0;
     gfx.fillStyle(color);
     gfx.fillRect(x, y, w, HP_BAR_H);
+    // Team-colored 1px border over the full trough width
+    gfx.lineStyle(1, teamColor, 1);
+    gfx.strokeRect(x, y, HP_BAR_W, HP_BAR_H);
   }
 
   /** Refresh the fill bar for the given worm (after HP change or death). */
   #refreshHpFill(worm: Character): void {
     const row = this.#wormRows.get(worm.name);
     if (!row) return;
-    this.#drawHpFill(row.fill, worm, row.barX, row.barY);
+    this.#drawHpFill(row.fill, worm, row.barX, row.barY, row.teamColor);
   }
 
   /** Update the turn-indicator label. */
@@ -312,18 +350,70 @@ export class UIScene extends Phaser.Scene {
    */
   #applyTimerTick(remaining: number): void {
     this.#timerText.setText(String(Math.max(0, remaining)));
+    let color: number;
     if (remaining > 15) {
       this.#timerText.setColor("#00dd00");
+      color = 0x00dd00;
     } else if (remaining > 5) {
       this.#timerText.setColor("#ff8800");
+      color = 0xff8800;
     } else {
       this.#timerText.setColor("#ff2222");
+      color = 0xff2222;
+    }
+
+    // Circular progress arc behind timer
+    this.#timerArc.clear();
+    const ratio = Math.max(0, remaining) / TIMER_MAX;
+    if (ratio > 0) {
+      const startAngle = -Math.PI / 2;
+      const endAngle = startAngle + 2 * Math.PI * ratio;
+      this.#timerArc.lineStyle(3, color, 0.4);
+      this.#timerArc.beginPath();
+      this.#timerArc.arc(
+        CANVAS_SIZE / 2,
+        TIMER_ARC_Y,
+        TIMER_ARC_R,
+        startAngle,
+        endAngle,
+        false,
+      );
+      this.#timerArc.strokePath();
+    }
+
+    // Pulse animation when time is critical
+    if (remaining <= 5 && !this.#timerPulsing) {
+      this.#timerPulsing = true;
+      this.tweens.add({
+        targets: this.#timerText,
+        scaleX: { from: 1, to: 1.15 },
+        scaleY: { from: 1, to: 1.15 },
+        duration: 300,
+        yoyo: true,
+        repeat: -1,
+      });
+    }
+    if (remaining > 5 && this.#timerPulsing) {
+      this.#timerPulsing = false;
+      this.tweens.killTweensOf(this.#timerText);
+      this.#timerText.setScale(1);
     }
   }
 
-  /** Update the active weapon display. */
+  /** Update the active weapon display and redraw the pill background. */
   #applyWeaponChange(weapon: WeaponId): void {
     this.#weaponText.setText(getWeapon(weapon)?.label ?? weapon);
+
+    // Pill background — drawn after setting text so we know its dimensions
+    const tw = this.#weaponText.width;
+    const th = 28;
+    const px = CANVAS_SIZE - 10 - tw;
+    const py = CANVAS_SIZE - 10 - th;
+    this.#weaponPill.clear();
+    this.#weaponPill.fillStyle(0x1a1a2e, 0.8);
+    this.#weaponPill.fillRoundedRect(px, py, tw, th, 14);
+    this.#weaponPill.lineStyle(1, 0xffff88, 1);
+    this.#weaponPill.strokeRoundedRect(px, py, tw, th, 14);
   }
 
   /** Show or hide the gravity boost status indicator. */
@@ -340,11 +430,27 @@ export class UIScene extends Phaser.Scene {
   #applyJetpackTick(remaining: number): void {
     this.#timerText.setText(String(Math.max(0, remaining)));
     this.#timerText.setColor("#ff8800");
+    this.#timerArc.clear();
   }
 
   /** Restore timer display after jetpack ends (next turn-start will repopulate). */
   #applyJetpackEnd(): void {
     this.#timerText.setColor("#00dd00");
+  }
+
+  /** Briefly flash a full-screen team-colored vignette on turn start. */
+  #flashVignette(teamColor: number): void {
+    const vignette = this.add.graphics().setDepth(50);
+    vignette.fillStyle(teamColor, 1);
+    vignette.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    vignette.setAlpha(0);
+    this.tweens.add({
+      targets: vignette,
+      alpha: { from: 0, to: 0.15 },
+      duration: 200,
+      yoyo: true,
+      onComplete: () => vignette.destroy(),
+    });
   }
 
   /** Briefly show "Music: ON" or "Music: OFF" in the center of the screen. */

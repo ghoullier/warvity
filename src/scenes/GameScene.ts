@@ -112,6 +112,14 @@ export class GameScene extends Phaser.Scene {
     return this.#teams[this.#turnManager.getActiveTeamIndex()]?.name ?? "";
   }
 
+  get activeTeamIndex(): number {
+    return this.#turnManager.getActiveTeamIndex();
+  }
+
+  get teamColors(): readonly number[] {
+    return TEAM_COLORS;
+  }
+
   get remainingTime(): number {
     return this.#turnManager.getRemainingTime();
   }

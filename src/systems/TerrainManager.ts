@@ -49,6 +49,7 @@ export class TerrainManager {
   readonly #scene: Phaser.Scene;
   readonly #style: PlanetStyle;
   readonly #sectorBodies: Array<MatterJS.BodyType | null>;
+  #coreBody: MatterJS.BodyType;
 
   constructor(scene: Phaser.Scene, style: PlanetStyle = DEFAULT_PLANET_STYLE) {
     this.#scene = scene;
@@ -69,6 +70,20 @@ export class TerrainManager {
     for (let i = 0; i < SECTOR_COUNT; i++) {
       this.#sectorBodies[i] = this.#createSectorBody(i);
     }
+
+    // Inner bedrock — catches worms that fall into craters
+    this.#coreBody = this.#scene.matter.add.circle(
+      PLANET_CENTER.x,
+      PLANET_CENTER.y,
+      PLANET_RADIUS - SECTOR_DEPTH - 4,
+      {
+        isStatic: true,
+        label: "terrain-core",
+        friction: 0.5,
+        restitution: 0.05,
+        collisionFilter: { category: 0x0001, mask: 0xffff },
+      },
+    );
 
     // Visual terrain drawn to a RenderTexture for efficient hole-punching
     this.#renderTexture = scene.add.renderTexture(
@@ -266,6 +281,7 @@ export class TerrainManager {
         this.#scene.matter.world.remove(body, false);
       }
     }
+    this.#scene.matter.world.remove(this.#coreBody, false);
     this.#renderTexture.destroy();
     this.#outlineGraphics.destroy();
   }

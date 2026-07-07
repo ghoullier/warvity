@@ -419,6 +419,19 @@ export class GameScene extends Phaser.Scene {
       this.#teleporter.update(this.input.activePointer);
     }
 
+    // Drown check: worm inside the planet past the bedrock → instant kill
+    const DROWN_RADIUS = PLANET_RADIUS * 0.7;
+    for (const team of this.#teams) {
+      for (const worm of team.worms) {
+        if (!worm.isAlive()) continue;
+        const dx = worm.body.position.x - PLANET_CENTER.x;
+        const dy = worm.body.position.y - PLANET_CENTER.y;
+        if (Math.hypot(dx, dy) < DROWN_RADIUS) {
+          worm.takeDamage(worm.hp);
+        }
+      }
+    }
+
     // Sync visuals for all characters across all teams
     for (const worm of this.#allCharacters) worm.update(time);
   }

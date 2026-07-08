@@ -277,7 +277,6 @@ export class TerrainManager {
     surfaceGfx.fillStyle(this.#style.terrainFill, 1);
     surfaceGfx.fillCircle(cx, cy, PLANET_RADIUS);
     this.#renderTexture.draw(surfaceGfx);
-    surfaceGfx.destroy();
 
     // Erase the interior, leaving only the surface ring in the RenderTexture.
     // The visible ring thickness is SECTOR_DEPTH * 3 ≈ 42 px — enough to show
@@ -287,6 +286,13 @@ export class TerrainManager {
     interiorGfx.fillStyle(0xffffff, 1);
     interiorGfx.fillCircle(cx, cy, PLANET_RADIUS - ringThickness);
     this.#renderTexture.erase(interiorGfx);
+
+    // IMPORTANT: in Phaser 4, draw()/erase() buffer commands. render() flushes
+    // them to the canvas. Must call BEFORE destroying the Graphics objects,
+    // because the commandBuffer holds live references.
+    this.#renderTexture.render();
+
+    surfaceGfx.destroy();
     interiorGfx.destroy();
   }
 
@@ -356,6 +362,8 @@ export class TerrainManager {
     gfx.fillStyle(0xffffff, 1);
     gfx.fillCircle(x, y, radius);
     this.#renderTexture.erase(gfx);
+    // Flush BEFORE destroying gfx — commandBuffer holds a live reference.
+    this.#renderTexture.render();
     gfx.destroy();
 
     // Remove physics bodies for sectors whose terrain has been fully cleared.

@@ -261,22 +261,25 @@ export class TerrainManager {
   }
 
   #drawInitialTerrain(): void {
-    const gfx = this.#scene.add.graphics();
     const cx = PLANET_CENTER.x;
     const cy = PLANET_CENTER.y;
 
-    // Draw only the surface ring into the RenderTexture — the interior
-    // gradient is on the separate #planetFill layer (never erased).
-    gfx.fillStyle(this.#style.terrainFill, 1);
-    gfx.fillCircle(cx, cy, PLANET_RADIUS);
+    // Draw the full planet disk into the RenderTexture as the terrain surface.
+    const surfaceGfx = this.#scene.add.graphics();
+    surfaceGfx.fillStyle(this.#style.terrainFill, 1);
+    surfaceGfx.fillCircle(cx, cy, PLANET_RADIUS);
+    this.#renderTexture.draw(surfaceGfx);
+    surfaceGfx.destroy();
 
-    // Cut out the interior, leaving only the terrain ring visible in the texture
-    gfx.fillStyle(0x000000, 0);
-    // (The ring is implicitly defined by the RenderTexture's erase mechanism
-    //  and the #planetFill layer behind it — no extra cutout needed here.)
-
-    this.#renderTexture.draw(gfx);
-    gfx.destroy();
+    // Erase the interior, leaving only the surface ring in the RenderTexture.
+    // The visible ring thickness is SECTOR_DEPTH * 3 ≈ 42 px — enough to show
+    // craters clearly while keeping the gradient #planetFill layer visible below.
+    const ringThickness = SECTOR_DEPTH * 3;
+    const interiorGfx = this.#scene.add.graphics();
+    interiorGfx.fillStyle(0xffffff, 1);
+    interiorGfx.fillCircle(cx, cy, PLANET_RADIUS - ringThickness);
+    this.#renderTexture.erase(interiorGfx);
+    interiorGfx.destroy();
   }
 
   // ──────────────────────────────── public API ─────────────────────────────────

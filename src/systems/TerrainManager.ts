@@ -230,74 +230,59 @@ export class TerrainManager {
     }
   }
 
-  /** Draw the static planet interior (gradient fill + surface blobs). Never erased. */
+  /** Draw the static planet background — dark rock visible through craters. Never erased. */
   #drawPlanetInterior(): void {
     const gfx = this.#planetFill;
     const cx = PLANET_CENTER.x;
     const cy = PLANET_CENTER.y;
-    // The surface ring in the RenderTexture covers the outer SECTOR_DEPTH * 3 px.
-    // Everything outside this inner radius will be visible through craters.
-    const innerR = PLANET_RADIUS * 0.87;
 
-    // 1. Dark sub-surface rock — full disk; clearly visible through craters
-    //    because it contrasts with the lighter terrainFill surface ring.
-    gfx.fillStyle(0x1a0e06, 1);
+    // Solid dark sub-surface rock — full disk.
+    // Craters in the RT reveal this layer, creating a clear "depth" contrast.
+    gfx.fillStyle(0x110a04, 1);
     gfx.fillCircle(cx, cy, PLANET_RADIUS);
-
-    // 2. Terrain fill — lighter interior (stops before the surface ring)
-    gfx.fillStyle(this.#style.terrainFill, 1);
-    gfx.fillCircle(cx, cy, innerR);
-
-    // 3. Shadow overlay — darkens towards edges for a 3-D sphere look
-    gfx.fillStyle(0x000000, 0.2);
-    gfx.fillCircle(cx, cy, innerR * 0.9);
-
-    // 4. Mid accent
-    gfx.fillStyle(this.#style.surfaceAccent, 0.2);
-    gfx.fillCircle(cx, cy, innerR * 0.65);
-
-    // 5. Core glow
-    gfx.fillStyle(this.#style.coreColor, 0.25);
-    gfx.fillCircle(cx, cy, innerR * 0.4);
-
-    // 6. Surface texture blobs (just inside the sub-surface boundary)
-    for (let i = 0; i < 25; i++) {
-      const angle = (Math.PI * 2 * i) / 25 + (Math.random() - 0.5) * 0.5;
-      const dist = innerR * (0.82 + Math.random() * 0.12);
-      const bx = cx + Math.cos(angle) * dist;
-      const by = cy + Math.sin(angle) * dist;
-      const br = 3 + Math.random() * 5;
-      gfx.fillStyle(this.#style.terrainOutline, 0.3);
-      gfx.fillCircle(bx, by, br);
-    }
   }
 
   #drawInitialTerrain(): void {
     const cx = PLANET_CENTER.x;
     const cy = PLANET_CENTER.y;
 
-    // Draw the full planet disk into the RenderTexture as the terrain surface.
+    // Draw the FULL planet disk into the RenderTexture.
+    // Explosions erase into this surface; #planetFill dark rock shows through.
     const surfaceGfx = this.#scene.add.graphics();
     surfaceGfx.fillStyle(this.#style.terrainFill, 1);
     surfaceGfx.fillCircle(cx, cy, PLANET_RADIUS);
+
+    // Decorative concentric gradient layers drawn ON TOP of the base fill.
+    // These are part of the surface and will be erased with it in craters,
+    // but since they only cover the inner area, explosions (at the surface)
+    // will mostly punch through the outer terrainFill ring into dark rock.
+    surfaceGfx.fillStyle(0x000000, 0.18);
+    surfaceGfx.fillCircle(cx, cy, PLANET_RADIUS * 0.88);
+
+    surfaceGfx.fillStyle(this.#style.surfaceAccent, 0.18);
+    surfaceGfx.fillCircle(cx, cy, PLANET_RADIUS * 0.65);
+
+    surfaceGfx.fillStyle(this.#style.coreColor, 0.22);
+    surfaceGfx.fillCircle(cx, cy, PLANET_RADIUS * 0.4);
+
+    // Surface texture blobs near the terrain ring
+    for (let i = 0; i < 25; i++) {
+      const angle = (Math.PI * 2 * i) / 25 + (Math.random() - 0.5) * 0.5;
+      const dist = PLANET_RADIUS * (0.82 + Math.random() * 0.12);
+      const bx = cx + Math.cos(angle) * dist;
+      const by = cy + Math.sin(angle) * dist;
+      const br = 3 + Math.random() * 5;
+      surfaceGfx.fillStyle(this.#style.terrainOutline, 0.3);
+      surfaceGfx.fillCircle(bx, by, br);
+    }
+
     this.#renderTexture.draw(surfaceGfx);
 
-    // Erase the interior, leaving only the surface ring in the RenderTexture.
-    // The visible ring thickness is SECTOR_DEPTH * 3 ≈ 42 px — enough to show
-    // craters clearly while keeping the gradient #planetFill layer visible below.
-    const ringThickness = SECTOR_DEPTH * 3;
-    const interiorGfx = this.#scene.add.graphics();
-    interiorGfx.fillStyle(0xffffff, 1);
-    interiorGfx.fillCircle(cx, cy, PLANET_RADIUS - ringThickness);
-    this.#renderTexture.erase(interiorGfx);
-
     // IMPORTANT: in Phaser 4, draw()/erase() buffer commands. render() flushes
-    // them to the canvas. Must call BEFORE destroying the Graphics objects,
-    // because the commandBuffer holds live references.
+    // them. Must call BEFORE destroying the Graphics objects.
     this.#renderTexture.render();
 
     surfaceGfx.destroy();
-    interiorGfx.destroy();
   }
 
   // ──────────────────────────────── public API ─────────────────────────────────

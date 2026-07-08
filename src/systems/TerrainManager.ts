@@ -73,11 +73,14 @@ export class TerrainManager {
       this.#sectorBodies[i] = this.#createSectorBody(i);
     }
 
-    // Inner bedrock — catches worms that fall into craters
+    // Inner bedrock — very deep safety net to stop worms falling to the planet
+    // core after large craters. Placed at 55% of planet radius so craters
+    // (max explosion radius 80px out of PLANET_RADIUS 280px) never reach it,
+    // while worms that fall completely through still get caught.
     this.#coreBody = this.#scene.matter.add.circle(
       PLANET_CENTER.x,
       PLANET_CENTER.y,
-      PLANET_RADIUS - SECTOR_DEPTH - 4,
+      Math.round(PLANET_RADIUS * 0.55),
       {
         isStatic: true,
         label: "terrain-core",

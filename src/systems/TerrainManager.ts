@@ -96,6 +96,10 @@ export class TerrainManager {
       CANVAS_SIZE,
     );
     this.#renderTexture.setDepth(-1);
+    // Origin must be (0,0) so RT canvas coords map 1:1 to world coords.
+    // Default origin (0.5,0.5) would center the 800×800 canvas at (0,0),
+    // shifting all drawn content 400px up-left from the planet.
+    this.#renderTexture.setOrigin(0, 0);
 
     // Static planet interior fill — drawn as a separate Graphics layer
     // below the RenderTexture so erase() never removes it.

@@ -195,6 +195,9 @@ export class GameScene extends Phaser.Scene {
       console.log(
         `[TurnManager] Turn started — active worm: ${worm.name} (team ${this.#turnManager.getActiveTeamIndex()})`,
       );
+      // Clean up any projectiles/entities left over from the previous turn
+      // (e.g. if the timer expired before the projectile hit anything).
+      resetAllWeapons();
       worm.clearShield();
       this.#audioManager.playTeleport();
       this.#cameraController.follow(worm);

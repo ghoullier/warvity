@@ -98,6 +98,25 @@ export class Singularity {
     return this.#active;
   }
 
+  /** Removes this singularity silently (no explosion effects or events). */
+  silentDestroy(): void {
+    if (!this.#active) return;
+    this.#active = false;
+    this.#flightTimer?.remove(false);
+    this.#flightTimer = null;
+    this.#activeTimer?.remove(false);
+    this.#activeTimer = null;
+    for (const t of this.#tweens) t.stop();
+    this.#tweens.length = 0;
+    if (this.#collisionHandler) {
+      this.#scene.matter.world.off("collisionstart", this.#collisionHandler);
+      this.#collisionHandler = null;
+    }
+    this.#scene.matter.world.remove(this.body, false);
+    this.#coreGfx.destroy();
+    this.#ringGfx.destroy();
+  }
+
   /** Called every frame to sync visuals and apply attraction when frozen. */
   update(): void {
     if (!this.#active) return;

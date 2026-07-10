@@ -1,5 +1,6 @@
 import Matter from "matter-js";
 import type Phaser from "phaser";
+import { PLANET_CENTER, PLANET_RADIUS } from "../config";
 import { GameEvents } from "../systems/GameEvents";
 import { toMatterBody } from "../utils/matterUtils";
 
@@ -11,6 +12,15 @@ const FUSE_DURATION = 3; // seconds
 const EXPLOSION_VISUAL_RADIUS = 50;
 const EXPLOSION_DURATION = 450;
 export const MAX_GRENADE_SPEED = 10;
+
+/**
+ * Maximum depth below the surface at which a grenade is allowed to travel.
+ * If the grenade drops below this radius it has either tunnelled through a
+ * sector body or fallen into a very deep crater — force-explode immediately
+ * to prevent it reaching the planet core.
+ * 0.85 × 280 = 238 px from centre ≈ 42 px below the surface.
+ */
+const DEPTH_GUARD_RADIUS = PLANET_RADIUS * 0.85;
 
 type CollisionEvent = {
   pairs: Array<{ bodyA: MatterJS.BodyType; bodyB: MatterJS.BodyType }>;
@@ -87,17 +97,22 @@ export class Grenade {
 
         const other = pair.bodyA === this.body ? pair.bodyB : pair.bodyA;
 
-        // Only count collisions with static bodies (terrain)
-        if (other.isStatic) {
-          this.#bounceCount++;
+        if (!other.isStatic) break;
 
-          if (this.#bounceCount >= MAX_BOUNCES) {
-            Matter.Body.set(toMatterBody(this.body), {
-              restitution: 0,
-              friction: 1,
-              frictionAir: 0.3,
-            });
-          }
+        // Grenade reached the bedrock — explode immediately rather than
+        // bouncing at the planet core.
+        if (other.label === "terrain-core") {
+          this.explode();
+          return;
+        }
+
+        this.#bounceCount++;
+        if (this.#bounceCount >= MAX_BOUNCES) {
+          Matter.Body.set(toMatterBody(this.body), {
+            restitution: 0,
+            friction: 1,
+            frictionAir: 0.3,
+          });
         }
         break;
       }
@@ -116,6 +131,15 @@ export class Grenade {
   update(): void {
     if (!this.#active) return;
     const { x, y } = this.body.position;
+
+    // Depth guard: if the grenade has tunnelled through a sector body or
+    // fallen into a very deep crater, explode immediately rather than let it
+    // travel to the planet core.
+    const dist = Math.hypot(x - PLANET_CENTER.x, y - PLANET_CENTER.y);
+    if (dist < DEPTH_GUARD_RADIUS) {
+      this.explode();
+      return;
+    }
 
     // Record position for trail
     this.#trail.push({ x, y });

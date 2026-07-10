@@ -8,6 +8,30 @@ import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
 const FIRE_OFFSET = 40;
 
 const clusterBombs: ClusterBomb[] = [];
+let pendingScene: Phaser.Scene | null = null;
+let pendingSubListener: ((...args: unknown[]) => void) | null = null;
+let pendingExplodedListener: ((...args: unknown[]) => void) | null = null;
+
+function clearPendingListeners(): void {
+  if (pendingScene) {
+    if (pendingSubListener) {
+      pendingScene.events.off(
+        GameEvents.SUB_MUNITION_EXPLODED,
+        pendingSubListener,
+      );
+    }
+    if (pendingExplodedListener) {
+      pendingScene.events.off(
+        GameEvents.CLUSTER_EXPLODED,
+        pendingExplodedListener,
+      );
+    }
+    pendingScene.events.off(GameEvents.CLUSTER_SPLIT);
+  }
+  pendingScene = null;
+  pendingSubListener = null;
+  pendingExplodedListener = null;
+}
 
 registerWeapon({
   id: "cluster-bomb",
@@ -30,6 +54,8 @@ registerWeapon({
       ),
     );
 
+    clearPendingListeners();
+
     scene.events.on(GameEvents.CLUSTER_SPLIT, () => {
       audioManager.playClusterSplit();
     });
@@ -46,13 +72,17 @@ registerWeapon({
       ParticleSystem.explode(scene, x, y, PLANET_CENTER);
     };
 
-    scene.events.on(GameEvents.SUB_MUNITION_EXPLODED, onSubExploded);
-
-    scene.events.once(GameEvents.CLUSTER_EXPLODED, () => {
-      scene.events.off(GameEvents.SUB_MUNITION_EXPLODED, onSubExploded);
-      scene.events.off(GameEvents.CLUSTER_SPLIT);
+    const onClusterExploded = () => {
+      clearPendingListeners();
       ctx.nextTurn();
-    });
+    };
+
+    scene.events.on(GameEvents.SUB_MUNITION_EXPLODED, onSubExploded);
+    scene.events.once(GameEvents.CLUSTER_EXPLODED, onClusterExploded);
+
+    pendingScene = scene;
+    pendingSubListener = onSubExploded as (...args: unknown[]) => void;
+    pendingExplodedListener = onClusterExploded as (...args: unknown[]) => void;
 
     return true;
   },
@@ -67,6 +97,8 @@ registerWeapon({
   },
 
   onReset(): void {
+    clearPendingListeners();
+    for (const c of clusterBombs) c.silentDestroy();
     clusterBombs.length = 0;
   },
 });

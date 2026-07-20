@@ -93,6 +93,27 @@ export class ClusterBomb {
     return this.#active;
   }
 
+  /** Removes this cluster bomb silently (no explosion effects or events). */
+  silentDestroy(): void {
+    if (!this.#active) return;
+    this.#active = false;
+    this.#fuseTimer?.remove(false);
+    this.#fuseTimer = null;
+    this.#countdownText?.destroy();
+    this.#countdownText = null;
+    if (!this.#hasSplit) {
+      this.#scene.matter.world.remove(this.body, false);
+      this.#graphics.destroy();
+    }
+    for (let i = 0; i < this.#subBodies.length; i++) {
+      const sub = this.#subBodies[i];
+      if (sub) this.#scene.matter.world.remove(sub, false);
+      this.#subGraphics[i]?.destroy();
+    }
+    this.#subBodies.length = 0;
+    this.#subGraphics.length = 0;
+  }
+
   /** Called every frame to sync visuals with physics bodies. */
   update(): void {
     if (!this.#active) return;

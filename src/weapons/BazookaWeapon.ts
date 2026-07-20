@@ -8,6 +8,16 @@ import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
 const FIRE_OFFSET = 40;
 
 const projectiles: Projectile[] = [];
+let pendingScene: Phaser.Scene | null = null;
+let pendingListener: ((...args: unknown[]) => void) | null = null;
+
+function clearPendingListener(): void {
+  if (pendingScene && pendingListener) {
+    pendingScene.events.off(GameEvents.PROJECTILE_EXPLODED, pendingListener);
+  }
+  pendingScene = null;
+  pendingListener = null;
+}
 
 registerWeapon({
   id: "bazooka",
@@ -40,22 +50,24 @@ registerWeapon({
       ),
     );
 
-    scene.events.once(
-      GameEvents.PROJECTILE_EXPLODED,
-      ({ x, y }: { x: number; y: number }) => {
-        audioManager.playExplosion();
-        applyExplosion(
-          ctx,
-          x,
-          y,
-          WEAPON_CONFIG.bazooka.radius,
-          WEAPON_CONFIG.bazooka.damage,
-        );
-        ParticleSystem.explode(scene, x, y, PLANET_CENTER);
-        ParticleSystem.debris(scene, x, y, PLANET_CENTER);
-        ctx.nextTurn();
-      },
-    );
+    clearPendingListener();
+    const listener = ({ x, y }: { x: number; y: number }) => {
+      clearPendingListener();
+      audioManager.playExplosion();
+      applyExplosion(
+        ctx,
+        x,
+        y,
+        WEAPON_CONFIG.bazooka.radius,
+        WEAPON_CONFIG.bazooka.damage,
+      );
+      ParticleSystem.explode(scene, x, y, PLANET_CENTER);
+      ParticleSystem.debris(scene, x, y, PLANET_CENTER);
+      ctx.nextTurn();
+    };
+    pendingScene = scene;
+    pendingListener = listener as (...args: unknown[]) => void;
+    scene.events.once(GameEvents.PROJECTILE_EXPLODED, listener);
 
     return true;
   },
@@ -70,6 +82,8 @@ registerWeapon({
   },
 
   onReset(): void {
+    clearPendingListener();
+    for (const p of projectiles) p.silentDestroy();
     projectiles.length = 0;
   },
 });

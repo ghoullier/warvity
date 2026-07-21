@@ -1,5 +1,54 @@
 # Changelog
 
+## [1.3.0](https://github.com/ghoullier/warvity/compare/v1.2.0...v1.3.0) (2026-07-21)
+
+
+### Features
+
+* add cluster bomb weapon ([#60](https://github.com/ghoullier/warvity/issues/60)) ([adb8dc5](https://github.com/ghoullier/warvity/commit/adb8dc5c0660636c1cb3e0cea07a324fd47eae49))
+* add flamethrower weapon ([#58](https://github.com/ghoullier/warvity/issues/58)) ([b62628e](https://github.com/ghoullier/warvity/commit/b62628ebffa8887c1bc9cffbb8078c4af3f62eb6)), closes [#53](https://github.com/ghoullier/warvity/issues/53)
+* add jetpack weapon ([#61](https://github.com/ghoullier/warvity/issues/61)) ([f4fc3f3](https://github.com/ghoullier/warvity/commit/f4fc3f3c15757c99ed00a0585678c9f811459107))
+* add land mine weapon + fix type union syntax from rebase ([#62](https://github.com/ghoullier/warvity/issues/62)) ([4deaf1d](https://github.com/ghoullier/warvity/commit/4deaf1d1c2d4970307f853aec5bd403eeba4f1d3))
+* add shield weapon ([#59](https://github.com/ghoullier/warvity/issues/59)) ([0827de0](https://github.com/ghoullier/warvity/commit/0827de00b14e88bf898c6d0d481cda71cb192a78))
+* background music with per-planet themes ([#107](https://github.com/ghoullier/warvity/issues/107)) ([00b5680](https://github.com/ghoullier/warvity/commit/00b5680fd5051a665a9333a1c2497445ee4f64e6))
+* fill planet interior with gradient and atmosphere glow ([#114](https://github.com/ghoullier/warvity/issues/114)) ([9015019](https://github.com/ghoullier/warvity/commit/9015019f6ed70f08a81faf16bae808edfb45a079))
+* game over screen with winner announcement and replay ([#105](https://github.com/ghoullier/warvity/issues/105)) ([cf85dcf](https://github.com/ghoullier/warvity/commit/cf85dcf20729e68744e1e04233fd0c9c7a9a758f))
+* HUD visual polish (HP bars, timer arc, turn flash, weapon pill) ([#117](https://github.com/ghoullier/warvity/issues/117)) ([ff7ca01](https://github.com/ghoullier/warvity/commit/ff7ca0196736b2d0f932d885b3639509d85d482b))
+* improved worm visuals and projectile trails ([#115](https://github.com/ghoullier/warvity/issues/115)) ([de13ce8](https://github.com/ghoullier/warvity/commit/de13ce86f961799e260857eef52ef6a3e7e8963a))
+* multi-round mode (best of N) ([#108](https://github.com/ghoullier/warvity/issues/108)) ([068e1dd](https://github.com/ghoullier/warvity/commit/068e1ddbba00bfa7f25982ac8a44863bd9e28d0b))
+* richer star field with twinkling, color variation and nebula ([#116](https://github.com/ghoullier/warvity/issues/116)) ([03e5d68](https://github.com/ghoullier/warvity/commit/03e5d6837d222ed521f6cb4cdf3807c48fca187c))
+* worm animations (land squash, walk bob, death, active pulse) ([#106](https://github.com/ghoullier/warvity/issues/106)) ([65baf8f](https://github.com/ghoullier/warvity/commit/65baf8f9ba5a381257fde331b74cf31ddbae5afc))
+
+
+### Bug Fixes
+
+* call render() before destroy() to flush Phaser 4 commandBuffer ([ec83738](https://github.com/ghoullier/warvity/commit/ec837383bdac3e129f4a6baa0656da659639bd64))
+* dark sub-surface layer makes craters clearly visible ([0407347](https://github.com/ghoullier/warvity/commit/0407347be226d1342034a5cf6eba6667ebba0274))
+* erase RenderTexture interior so craters reveal gradient below ([f04bdba](https://github.com/ghoullier/warvity/commit/f04bdbaed40869aab9ebb205bcfae20daefa9dd4))
+* full disk in RT so craters reveal dark rock at any depth ([3b27b9b](https://github.com/ghoullier/warvity/commit/3b27b9b98830413e6478252981afc79d89b1e369))
+* memory leaks and lifecycle (shutdown, AudioManager, GravityBoost, TurnManager) ([#87](https://github.com/ghoullier/warvity/issues/87)) ([569d0a0](https://github.com/ghoullier/warvity/commit/569d0a0c2746e1d1fc9e20be2990b65400382e7b))
+* move bedrock body deeper so grenades fall into craters ([0a41b30](https://github.com/ghoullier/warvity/commit/0a41b30929127ad69cff0f6dc25b40365e3e30e6))
+* prevent gh-pages non-fast-forward push failures from concurrent workflows ([#49](https://github.com/ghoullier/warvity/issues/49)) ([f008e07](https://github.com/ghoullier/warvity/commit/f008e077d5b8812d80bacba30e3885074b1357cd))
+* prevent grenades from tunnelling to planet core ([#125](https://github.com/ghoullier/warvity/issues/125)) ([cf57f81](https://github.com/ghoullier/warvity/commit/cf57f810a762d502850628b72f43c1cc2b973492))
+* prevent worms falling through planet after explosions (add bedrock body) ([#118](https://github.com/ghoullier/warvity/issues/118)) ([5aff907](https://github.com/ghoullier/warvity/commit/5aff90733a474aa6e881f13e43da1ea4f20ce272))
+* remove duplicate constants (DEFAULT_PLANET_STYLE, CHAR_HEIGHT) ([#91](https://github.com/ghoullier/warvity/issues/91)) ([be6e21e](https://github.com/ghoullier/warvity/commit/be6e21e3e8e8b97cb6b8674876e815cc83ef706d))
+* separate planet interior fill from RenderTexture to preserve gradient through explosions ([026b8e8](https://github.com/ghoullier/warvity/commit/026b8e8dfca5e4130c58c2130182a335bf8054bb))
+* setOrigin(0,0) on RenderTexture to align canvas with world coords ([87957f9](https://github.com/ghoullier/warvity/commit/87957f94c640b8035e71e9ce61af948fe381dff9))
+* trajectory preview respects active weapon type ([#92](https://github.com/ghoullier/warvity/issues/92)) ([3887385](https://github.com/ghoullier/warvity/commit/3887385fac88a4c4456eaff2bf5a63f054ecf25b))
+* update terrain physics body after explosions (craters are not visual-only) ([#93](https://github.com/ghoullier/warvity/issues/93)) ([d0307f4](https://github.com/ghoullier/warvity/commit/d0307f432322c2a6ad555dab721e294a7f25f0c3))
+* use local coords for button hitArea in GameOverScene ([4cb888e](https://github.com/ghoullier/warvity/commit/4cb888e2f79caeb277f34e2f638bb97fb66101d3))
+
+
+### Miscellaneous
+
+* **deps-dev:** Bump @biomejs/biome from 2.5.1 to 2.5.2 ([#50](https://github.com/ghoullier/warvity/issues/50)) ([2a4f80a](https://github.com/ghoullier/warvity/commit/2a4f80a24fb0ee5caff1d1167345911f520bc3e3))
+* **deps-dev:** Bump @biomejs/biome from 2.5.2 to 2.5.3 ([#119](https://github.com/ghoullier/warvity/issues/119)) ([e4ac9d3](https://github.com/ghoullier/warvity/commit/e4ac9d3cc46a9984ecff24fdd5a6f854e2cc86d9))
+* **deps-dev:** Bump @biomejs/biome from 2.5.3 to 2.5.4 ([#126](https://github.com/ghoullier/warvity/issues/126)) ([9df59b9](https://github.com/ghoullier/warvity/commit/9df59b9f35235832508052b5c38c08972fe8cdc4))
+* **deps-dev:** Bump @biomejs/biome from 2.5.4 to 2.5.5 ([#128](https://github.com/ghoullier/warvity/issues/128)) ([e2a0e98](https://github.com/ghoullier/warvity/commit/e2a0e98a0982f60f52f8951f2edada5e6a7e5719))
+* **deps-dev:** Bump vite from 8.1.2 to 8.1.3 ([#51](https://github.com/ghoullier/warvity/issues/51)) ([fd8ead3](https://github.com/ghoullier/warvity/commit/fd8ead38cff085f26fe1201412b88f9d2b92f535))
+* **deps-dev:** Bump vite from 8.1.3 to 8.1.5 ([#127](https://github.com/ghoullier/warvity/issues/127)) ([f74f21b](https://github.com/ghoullier/warvity/commit/f74f21b73c1ea80c86b53829331f981c11d665c9))
+* **deps:** Bump phaser from 4.2.0 to 4.2.1 ([#122](https://github.com/ghoullier/warvity/issues/122)) ([91db7df](https://github.com/ghoullier/warvity/commit/91db7df5cf7b1b04ee15e6917f271e87aff625fd))
+
 ## [1.2.0](https://github.com/ghoullier/warvity/compare/v1.1.0...v1.2.0) (2026-06-30)
 
 

@@ -169,6 +169,22 @@ export class Grenade {
     this.#graphics.fillCircle(0, 0, GRENADE_RADIUS);
   }
 
+  /** Removes this grenade silently (no explosion effects or events). */
+  silentDestroy(): void {
+    if (!this.#active) return;
+    this.#active = false;
+    this.#fuseTimer?.remove(false);
+    this.#fuseTimer = null;
+    this.#countdownText?.destroy();
+    this.#countdownText = null;
+    if (this.#collisionHandler) {
+      this.#scene.matter.world.off("collisionstart", this.#collisionHandler);
+      this.#collisionHandler = null;
+    }
+    this.#scene.matter.world.remove(this.body, false);
+    this.#graphics.destroy();
+  }
+
   /** Explosion visual, camera shake, and event emission. Terrain and damage are handled by GameScene. */
   explode(): void {
     if (!this.#active) return;

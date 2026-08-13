@@ -97,6 +97,15 @@ export class Projectile {
     }
   }
 
+  /** Removes this projectile silently (no explosion effects or events). */
+  silentDestroy(): void {
+    if (!this.#active) return;
+    this.#active = false;
+    this.#tearDownCollisions();
+    this.#scene.matter.world.remove(this.body, false);
+    this.#graphics.destroy();
+  }
+
   /** Explosion visual, camera shake, and event emission. Terrain and damage are handled by GameScene. */
   explode(): void {
     if (!this.#active) return;

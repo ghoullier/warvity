@@ -8,6 +8,16 @@ import { registerWeapon, type WeaponContext } from "./WeaponRegistry";
 const FIRE_OFFSET = 40;
 
 const grenades: Grenade[] = [];
+let pendingScene: Phaser.Scene | null = null;
+let pendingListener: ((...args: unknown[]) => void) | null = null;
+
+function clearPendingListener(): void {
+  if (pendingScene && pendingListener) {
+    pendingScene.events.off(GameEvents.GRENADE_EXPLODED, pendingListener);
+  }
+  pendingScene = null;
+  pendingListener = null;
+}
 
 registerWeapon({
   id: "grenade",
@@ -30,22 +40,24 @@ registerWeapon({
       ),
     );
 
-    scene.events.once(
-      GameEvents.GRENADE_EXPLODED,
-      ({ x, y }: { x: number; y: number }) => {
-        audioManager.playExplosion();
-        applyExplosion(
-          ctx,
-          x,
-          y,
-          WEAPON_CONFIG.grenade.radius,
-          WEAPON_CONFIG.grenade.damage,
-        );
-        ParticleSystem.explode(scene, x, y, PLANET_CENTER);
-        ParticleSystem.debris(scene, x, y, PLANET_CENTER);
-        ctx.nextTurn();
-      },
-    );
+    clearPendingListener();
+    const listener = ({ x, y }: { x: number; y: number }) => {
+      clearPendingListener();
+      audioManager.playExplosion();
+      applyExplosion(
+        ctx,
+        x,
+        y,
+        WEAPON_CONFIG.grenade.radius,
+        WEAPON_CONFIG.grenade.damage,
+      );
+      ParticleSystem.explode(scene, x, y, PLANET_CENTER);
+      ParticleSystem.debris(scene, x, y, PLANET_CENTER);
+      ctx.nextTurn();
+    };
+    pendingScene = scene;
+    pendingListener = listener as (...args: unknown[]) => void;
+    scene.events.once(GameEvents.GRENADE_EXPLODED, listener);
 
     return true;
   },
@@ -60,6 +72,8 @@ registerWeapon({
   },
 
   onReset(): void {
+    clearPendingListener();
+    for (const g of grenades) g.silentDestroy();
     grenades.length = 0;
   },
 });
